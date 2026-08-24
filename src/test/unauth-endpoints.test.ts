@@ -69,3 +69,28 @@ test("custom-named guard dependency (Depends(require_admin)) does NOT fire (dogf
   const guarded = findByFile(findings, "src/routes/admin_users_guarded.py");
   assert.equal(guarded, undefined, "route with Depends(require_admin) must not be flagged");
 });
+
+test("unguarded /api/debug route touching user data fires (dogfood recall regression)", async () => {
+  // Found dogfooding FounderDive: an unauthenticated debug route queried
+  // user_profiles with a service key but wasn't flagged because its path had
+  // no sensitive-path keyword. Debug/internal routes are now in scope.
+  const findings = await scan(rootDir);
+  const f = findByFile(findings, "src/routes/debug_dump.py");
+  assert.ok(f, "expected unguarded debug route to fire");
+  assert.match(f!.description, /FastAPI route '\/debug\/user-count'/);
+});
+
+test("guarded /api/debug route does NOT fire", async () => {
+  const findings = await scan(rootDir);
+  const guarded = findByFile(findings, "src/routes/debug_guarded.py");
+  assert.equal(guarded, undefined, "guarded debug route must not be flagged");
+});
+
+test("hand-rolled Authorization-header token guard does NOT fire (dogfood regression)", async () => {
+  // Found dogfooding FounderDive: a one-shot migration endpoint guarded by an
+  // in-handler bearer-token check on `authorization: str = Header(None)` —
+  // no Depends() anywhere — was flagged as unauthenticated.
+  const findings = await scan(rootDir);
+  const guarded = findByFile(findings, "src/routes/migration_guarded.py");
+  assert.equal(guarded, undefined, "header-token-guarded route must not be flagged");
+});

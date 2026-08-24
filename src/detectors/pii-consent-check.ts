@@ -11,11 +11,31 @@ const PII_COLLECTORS: { name: string; pattern: RegExp }[] = [
   { name: "Email input field", pattern: /type=["']email["']/ },
 ];
 
-const POLICY_ARTIFACT_HINTS = [
-  /privacy[-_]?policy/i,
+// Filename-level artifact hints: a file whose PATH names a privacy/terms/
+// consent document counts, whatever its contents.
+const POLICY_ARTIFACT_FILENAME_HINTS = [
+  /privac/i,
   /terms[-_]?of[-_]?service/i,
   /consent/i,
 ];
+
+// Content-level artifact hints require STRUCTURAL evidence — an attribute,
+// assignment, or route path pointing at such a page. A bare mention of the
+// words ("TODO: add privacy policy") must not suppress the finding.
+const POLICY_ARTIFACT_CONTENT_HINTS = [
+  // href="/privacy", privacyPolicyUrl: "…", src="…/consent.js"
+  /(?:href|src|action|url)\s*[:=]\s*["'][^"']*(?:privac|terms|consent)/i,
+  // route/path literals: "/privacy", "/terms-of-service", router.push("/consent")
+  /["'`(]\/[a-z0-9\-_/]*(?:privac|terms|consent)/i,
+];
+
+function looksLikePolicyArtifact(relPath: string): boolean {
+  return POLICY_ARTIFACT_FILENAME_HINTS.some((p) => p.test(relPath));
+}
+
+function contentLooksLikePolicyArtifact(content: string): boolean {
+  return POLICY_ARTIFACT_CONTENT_HINTS.some((p) => p.test(content));
+}
 
 export const piiConsentCheck: Detector = async (ctx) => {
   const findings: Finding[] = [];
@@ -24,7 +44,7 @@ export const piiConsentCheck: Detector = async (ctx) => {
 
   for (const relPath of ctx.files) {
     // Any filename that looks like a privacy policy / ToS page counts as an artifact.
-    if (POLICY_ARTIFACT_HINTS.some((p) => p.test(relPath))) {
+    if (looksLikePolicyArtifact(relPath)) {
       policyArtifactFound = true;
     }
 
@@ -39,7 +59,7 @@ export const piiConsentCheck: Detector = async (ctx) => {
     }
 
     // A link/route to a privacy policy also counts as an artifact.
-    if (POLICY_ARTIFACT_HINTS.some((p) => p.test(content))) {
+    if (contentLooksLikePolicyArtifact(content)) {
       policyArtifactFound = true;
     }
 

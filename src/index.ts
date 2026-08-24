@@ -2,16 +2,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
-import fg from "fast-glob";
-import { readFile } from "node:fs/promises";
-import { join } from "node:path";
-import { createRequire } from "node:module";
-
-// `ignore` is a CJS package whose type declarations don't interop cleanly
-// with NodeNext + esModuleInterop as a default import; requiring it directly
-// sidesteps the mismatch rather than fighting the type resolver.
-const require = createRequire(import.meta.url);
-const ignore: (opts?: unknown) => { add(s: string): unknown; ignores(p: string): boolean } = require("ignore");
+import { listFiles } from "./lib/list-files.js";
 
 import { secretsScanner } from "./detectors/secrets-scanner.js";
 import { licenseCheck } from "./detectors/license-check.js";
@@ -27,43 +18,6 @@ const DETECTORS: Record<Category, Detector> = {
   "pii-no-consent": piiConsentCheck,
   "client-side-payment": paymentHandling,
 };
-
-// Vendored dependency trees are third-party code, not project source.
-// Scanning them produces overwhelming false-positive noise (library test
-// fixtures with example keys, docstring examples) — every detector operates
-// on project-owned files only. license-check reads installed packages'
-// package.json / pubspec data directly from disk and does not need them in
-// the file list.
-const DEFAULT_EXCLUDES = [
-  "**/.git/**",
-  "**/dist/**",
-  "**/build/**",
-  "**/.next/**",
-  "**/coverage/**",
-  "**/node_modules/**",
-  "**/.venv/**",
-  "**/venv/**",
-  "**/.tox/**",
-];
-
-async function listFiles(rootDir: string): Promise<string[]> {
-  let gitignoreContent = "";
-  try {
-    gitignoreContent = await readFile(join(rootDir, ".gitignore"), "utf-8");
-  } catch {
-    // no .gitignore, fine
-  }
-  const ig = ignore().add(gitignoreContent) as { ignores(p: string): boolean };
-
-  const all = await fg(["**/*"], {
-    cwd: rootDir,
-    dot: true,
-    onlyFiles: true,
-    ignore: DEFAULT_EXCLUDES,
-  });
-
-  return all.filter((f) => !ig.ignores(f));
-}
 
 const server = new McpServer({
   name: "shipcheck",

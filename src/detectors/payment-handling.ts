@@ -27,6 +27,22 @@ function hasInputContextNear(content: string, index: number): boolean {
   return INPUT_FIELD_CONTEXT.test(content.slice(start, end));
 }
 
+/**
+ * Returns the first raw-card hint match that sits near an input-ish context,
+ * or undefined. All occurrences are checked, not just the first: a file can
+ * legitimately mention card/cvv in an unrelated word-list before any actual
+ * input field appears.
+ */
+function firstCardFieldWithInputContext(content: string): RegExpMatchArray | undefined {
+  const pattern = new RegExp(RAW_CARD_FIELD_HINTS.source, "gi");
+  let match: RegExpExecArray | null;
+  while ((match = pattern.exec(content)) !== null) {
+    if (hasInputContextNear(content, match.index)) return match;
+    if (match[0].length === 0) pattern.lastIndex++;
+  }
+  return undefined;
+}
+
 export const paymentHandling: Detector = async (ctx) => {
   const findings: Finding[] = [];
 
@@ -41,14 +57,11 @@ export const paymentHandling: Detector = async (ctx) => {
       continue;
     }
 
-    const hasRawCardField = RAW_CARD_FIELD_HINTS.test(content);
+    const cardFieldMatch = firstCardFieldWithInputContext(content);
     const hasProcessorSdk = PROCESSOR_SDK_HINTS.test(content);
 
-    const match = hasRawCardField ? content.match(RAW_CARD_FIELD_HINTS) : undefined;
-    const nearInputField = match?.index !== undefined ? hasInputContextNear(content, match.index) : false;
-
-    if (hasRawCardField && nearInputField && !hasProcessorSdk) {
-      const idx = match!.index;
+    if (cardFieldMatch && !hasProcessorSdk) {
+      const idx = cardFieldMatch.index;
       const lineNumber = content.slice(0, idx).split("\n").length;
 
       findings.push({

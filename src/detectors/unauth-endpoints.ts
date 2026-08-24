@@ -25,7 +25,12 @@ const NEXT_APP_HANDLER =
 // Next.js Pages Router: `pages/api/**` exporting a default request handler.
 const NEXT_PAGES_HANDLER = /export\s+(?:default\s+)?(?:async\s+)?function\s+\w*handler\w*/i;
 
-const SENSITIVE_PATH_HINTS = /(user|account|profile|admin|billing|payment|order|invoice|settings|private|me\b)/i;
+// "debug"/"internal" routes are included deliberately: dogfooding found an
+// unauthenticated /api/debug route that queried user data with a service key.
+// Diagnostic endpoints are a favorite AI-agent scaffold artifact and rarely
+// meant to be public.
+const SENSITIVE_PATH_HINTS =
+  /(user|account|profile|admin|billing|payment|order|invoice|settings|private|debug|internal|me\b)/i;
 
 const AUTH_GUARD_HINTS =
   /(requireAuth|isAuthenticated|authMiddleware|verifyToken|jwt\.verify|passport\.authenticate|Depends\(get_current_user|Depends\(verify|@login_required|auth\.uid\(\)|checkAuth|withAuth|@requires_auth)/;
@@ -37,6 +42,12 @@ const AUTH_GUARD_HINTS =
 // guard. Generic infrastructure dependencies like Depends(get_db) do not match.
 const FASTAPI_CUSTOM_GUARD_HINTS =
   /Depends\(\s*[A-Za-z_]*(auth|admin|guard|permission|session|current_user|require|token)[A-Za-z_]*\s*\)/i;
+
+// Hand-rolled header-token guards: the handler declares an `authorization`
+// Header parameter and verifies the bearer token inside its body (common for
+// webhook and one-shot admin endpoints). Found during dogfooding on a
+// migration endpoint guarded exactly this way.
+const FASTAPI_HEADER_AUTH_HINTS = /\bauthorization\b[^\n(]{0,40}Header\s*\(/i;
 
 // Next.js-specific guard idioms (NextAuth/Auth.js, Clerk, Supabase server
 // sessions). Kept separate so each framework's guards stay auditable.
@@ -54,14 +65,27 @@ function lineNumberAt(content: string, index: number): number {
 }
 
 function scanWithPattern(relPath: string, content: string, pattern: RegExp, framework: string, findings: Finding[]) {
+  // FastAPI routers commonly declare a prefix once (`APIRouter(prefix="/admin")`)
+  // that every decorator path is mounted under. Without it we'd report
+  // '/users' instead of '/admin/users' — losing the segment that often carries
+  // the sensitive-path signal. Best-effort: first prefix in the file wins.
+  const prefixMatch = content.match(/APIRouter\([^)]*?prefix\s*=\s*["']([^"']+)["']/);
+  const routerPrefix = framework === "FastAPI" && prefixMatch ? prefixMatch[1] : "";
+
   pattern.lastIndex = 0;
   let match: RegExpExecArray | null;
   while ((match = pattern.exec(content)) !== null) {
-    const routePath = match[3];
+    const routePath = routerPrefix + match[3];
     if (!SENSITIVE_PATH_HINTS.test(routePath)) continue;
 
     const nearby = windowAround(content, match.index);
-    if (AUTH_GUARD_HINTS.test(nearby) || FASTAPI_CUSTOM_GUARD_HINTS.test(nearby)) continue; // looks guarded, skip
+    if (
+      AUTH_GUARD_HINTS.test(nearby) ||
+      FASTAPI_CUSTOM_GUARD_HINTS.test(nearby) ||
+      FASTAPI_HEADER_AUTH_HINTS.test(nearby)
+    ) {
+      continue; // looks guarded, skip
+    }
 
     findings.push({
       category: "unauthenticated-endpoint",

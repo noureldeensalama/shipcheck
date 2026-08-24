@@ -20,7 +20,7 @@ severe-when-missed risk categories.
 |---|---|
 | Exposed secrets | API keys/tokens hardcoded or committed in `.env` files |
 | Copyleft license contamination | GPL/AGPL/LGPL dependencies in a closed-source app |
-| Unauthenticated data endpoints | Express/FastAPI routes touching user data with no visible auth guard |
+| Unauthenticated data endpoints | Express/FastAPI/Next.js routes touching user, account, or debug data with no visible auth guard |
 | PII without consent artifact | Analytics/signup/auth PII collection with no privacy policy found |
 | Client-side payment handling | Raw card fields with no PCI-scoped processor SDK present |
 
@@ -80,8 +80,8 @@ milestones, and honest caveats about detector limitations.
 ## Contributing
 
 See [CONTRIBUTING.md](./CONTRIBUTING.md). New detector categories, framework coverage for the
-unauthenticated-endpoint check (currently Express + FastAPI only), and false-positive reports are all
-welcome.
+unauthenticated-endpoint check (currently Express, FastAPI, and Next.js), and false-positive reports
+are all welcome. Real-repo dogfooding results live in [DOGFOOD_RESULTS.md](./DOGFOOD_RESULTS.md).
 
 ## License
 

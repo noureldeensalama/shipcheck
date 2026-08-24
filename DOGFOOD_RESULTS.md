@@ -9,23 +9,28 @@ the flagged source. Dates: 2026-08-24.
 
 ## Headline numbers
 
-| Repo | v1 findings | v1 false positives | v2 findings | v2 false positives |
+| Repo | v1 findings | v1 false positives | final findings | final false positives |
 |---|---|---|---|---|
-| FounderDive AI | 101 | ~84 (83%) | 16 | 0 confirmed (1 unverifiable) |
+| FounderDive AI | 101 | ~84 (83%) | 17 | 0 confirmed (1 unverifiable) |
 | Fitloom | 5 | 3 (60%) | 2 | 0 |
 
-v2 = after the narrowing changes listed at the bottom, each driven by a specific FP cluster below.
-The v1 noise was so bad it would have made the tool unusable on a real repo — exactly the
-"crying wolf" failure mode CONTRIBUTING.md warns about.
+v-final = after two narrowing rounds driven by specific FP clusters below (round 1 fixed the
+vendored-code noise and missed guard idioms; round 2 closed documented recall gaps and tightened
+the PII artifact rule without regressing either real repo). The v1 noise was so bad it would have
+made the tool unusable on a real repo — exactly the "crying wolf" failure mode CONTRIBUTING.md
+warns about.
 
 ## FounderDive AI
 
-### unauthenticated-endpoint: 25 → 1
+### unauthenticated-endpoint: 25 → 3 (all true positives)
 
 | Finding | Verdict |
 |---|---|
-| `backend/main.py:862` — FastAPI route `/api/debug/admin-source`, no auth found | **True positive.** The handler is a live diagnostic that reads the deployed `admin.py` off disk and returns its first 20 lines to any caller, no auth anywhere in the chain. Sibling debug routes (`/api/debug/raw-supabase-count` etc.) exist but don't match sensitive-path hints, so they were not flagged — recall gap, noted honestly. |
+| `backend/main.py:862` — `/api/debug/admin-source` | **True positive.** Live diagnostic returning the first 20 lines of deployed `admin.py` to any caller. |
+| `backend/main.py:848` — `/api/debug/deepdive-source` | **True positive**, found after adding `debug`/`internal` to sensitive-path hints (round 2). Same source-disclosure pattern. |
+| `backend/main.py:876` — `/api/debug/raw-supabase-count` | **True positive** — this was the recall gap documented in v1 notes; it queries `user_profiles` via the service key with no auth. Now flagged. |
 | `backend/routers/admin.py` ×18 and `admin_insights.py` ×2 — `/users…` routes "no auth check nearby" | **False positives.** Every one of these handlers takes `admin=Depends(require_admin)` — a project-specific guard dependency the v1 idiom list didn't recognize (it knew `Depends(get_current_user)` / `Depends(verify…)` only). Fixed: generic recognition of any `Depends(<auth-ish name>)`; regression fixture `src/routes/admin_users_guarded.py`. |
+| `backend/routers/admin_migrations.py` — `/api/admin/apply-migration` | **False positive, found in round 2** once router prefixes were included in reported paths. The endpoint IS guarded — by an in-handler bearer-token check on `authorization: str = Header(None)`, with no `Depends()` anywhere. Fixed: header-auth idiom recognition; regression fixture `src/routes/migration_guarded.py`. Also fixed in round 2: FastAPI `APIRouter(prefix=...)` is now prepended to reported paths (`'/users'` → `'/admin/users'`), which is what made this route's `admin` segment visible to hints at all. |
 | `backend/.venv/.../fastapi/*.py` ×5 — routes in library docs/examples | **False positives.** A Python virtualenv is third-party code; scanning it at all is wrong. Fixed: file listing now excludes `node_modules/`, `.venv/`, `venv/`, `.tox/`. |
 
 ### exposed-secrets: 64 → 14
@@ -70,22 +75,27 @@ The v1 noise was so bad it would have made the tool unusable on a real repo — 
 
 Each change has a fires-on-risk fixture AND a doesn't-over-fire regression test:
 
-1. **File listing** (`src/index.ts`, mirrored in `scripts/dogfood.mjs`): exclude vendored
-   dependency trees (`node_modules/`, `.venv/`, `venv/`, `.tox/`). License checking still works —
-   it reads installed packages directly from disk, not from the scanned file list.
+1. **File listing** (`src/lib/list-files.ts`, shared by the MCP server and the dogfood runner):
+   exclude vendored dependency trees (`node_modules/`, `.venv/`, `venv/`, `.tox/`). License checking
+   still works — it reads installed packages directly from disk, not from the scanned file list.
+   Covered by unit tests on the shared module.
 2. **unauth-endpoints**: recognize custom FastAPI guard dependencies via
-   `Depends(<identifier containing auth-ish word>)`.
+   `Depends(<identifier containing auth-ish word>)`; recognize hand-rolled
+   `authorization … Header(...)` bearer-token guards; include FastAPI router prefixes in reported
+   paths; add `debug`/`internal` to sensitive-path hints.
 3. **secrets-scanner**: suppress placeholder-marker values; skip Firebase client-config
    filenames (`google-services.json`, `GoogleService-Info.plist`).
-4. **payment-handling**: raw-card hints require input-field context within ±160 chars.
-5. **license-check**: single retry before reporting an undetermined pub.dev license.
+4. **payment-handling**: raw-card hints require input-field context within ±160 chars, checked
+   across ALL occurrences in the file (not just the first).
+5. **pii-consent-check**: privacy/terms/consent artifacts require structural evidence (dedicated
+   filename, link/attribute reference, or route path) — bare mentions like "TODO: add privacy
+   policy" no longer suppress the finding.
+6. **license-check**: single retry before reporting an undetermined pub.dev license.
 
 ## Honest limitations observed while dogfooding
 
-- `/api/debug/raw-supabase-count` (uses service key, no auth) was NOT flagged because its path
-  doesn't match the sensitive-path hints — a recall gap in unauth-endpoints, left open deliberately
-  rather than papered over.
 - Duplicate findings are reported per-file (the same leaked Supabase key appears 13 times). True,
- but noisy; dedup-by-value is a candidate improvement, not silently done here.
+  but noisy; dedup-by-value is a candidate improvement, not silently done here — you want every
+  location listed when cleaning up.
 - Judgment of the `_gh_probe.js` token is unverifiable statically; the finding stands because a
- shape-valid credential with no placeholder markers should be treated as compromised until proven otherwise.
+  shape-valid credential with no placeholder markers should be treated as compromised until proven otherwise.

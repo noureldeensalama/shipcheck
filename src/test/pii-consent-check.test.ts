@@ -18,6 +18,17 @@ test("fires when data collection exists but no privacy/consent artifact is found
   assert.match(f.description, /no privacy policy or consent artifact/);
 });
 
+test("bare 'privacy policy' mentions in code do NOT count as an artifact (dogfood tightening)", async () => {
+  // launch-checklist.ts contains the words "privacy policy" and "consent" in
+  // checklist strings. Under the old word-match rule this suppressed the
+  // finding; only links/routes/dedicated files count now.
+  const rootDir = "./test-fixtures/vulnerable-app";
+  const files = await fg(["**/*"], { cwd: rootDir, dot: true, onlyFiles: true });
+
+  const findings = await piiConsentCheck({ rootDir, files });
+  assert.equal(findings.length, 1, "checklist mentions must not suppress the finding");
+});
+
 test("same collectors with a privacy policy artifact present do NOT fire (false-positive regression)", async () => {
   const rootDir = "./test-fixtures/clean-app";
   const files = await fg(["**/*"], { cwd: rootDir, dot: true, onlyFiles: true });
