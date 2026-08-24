@@ -2,7 +2,9 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
+import { stat } from "node:fs/promises";
 import { listFiles } from "./lib/list-files.js";
+import { buildScanResult } from "./lib/scan-response.js";
 
 import { secretsScanner } from "./detectors/secrets-scanner.js";
 import { licenseCheck } from "./detectors/license-check.js";
@@ -18,6 +20,13 @@ const DETECTORS: Record<Category, Detector> = {
   "pii-no-consent": piiConsentCheck,
   "client-side-payment": paymentHandling,
 };
+
+function errorResult(message: string) {
+  return {
+    isError: true,
+    content: [{ type: "text" as const, text: message }],
+  };
+}
 
 const server = new McpServer({
   name: "shipcheck",
@@ -51,6 +60,18 @@ server.registerTool(
   },
   async ({ path, categories }) => {
     const rootDir = path;
+
+    // A typo'd path must NOT look like a clean scan: zero findings on a
+    // directory that doesn't exist would read as "nothing detected" to the
+    // calling agent. Fail loudly instead.
+    try {
+      const st = await stat(rootDir);
+      if (!st.isDirectory()) {
+        return errorResult(`'${rootDir}' is not a directory — give the path to a repository root.`);
+      }
+    } catch {
+      return errorResult(`Path '${rootDir}' does not exist or is not readable. Check for typos and use an absolute path if the repo is outside the current working directory.`);
+    }
     const files = await listFiles(rootDir);
     const activeCategories = (categories?.length ? categories : Object.keys(DETECTORS)) as Category[];
 
@@ -76,21 +97,15 @@ server.registerTool(
     );
 
     const findings = results.flat();
-    const summary = {
-      total: findings.length,
-      by_severity: {
-        critical: findings.filter((f) => f.severity === "critical").length,
-        high: findings.filter((f) => f.severity === "high").length,
-        medium: findings.filter((f) => f.severity === "medium").length,
-      },
-      note: "These are risk-pattern findings, not a legal compliance determination. Zero findings means nothing in these five categories was detected — it does not mean the app is safe to ship.",
-    };
+    const result = buildScanResult(findings);
 
     return {
       content: [
         {
           type: "text",
-          text: JSON.stringify({ summary, findings }, null, 2),
+          // Compact, not pretty-printed: this text goes straight into the
+          // calling model's context and every byte is paid for.
+          text: JSON.stringify(result),
         },
       ],
     };

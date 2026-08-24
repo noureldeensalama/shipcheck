@@ -68,3 +68,21 @@ test("google-services.json Firebase client config does NOT fire (dogfood regress
     `Firebase client config must not produce findings; got: ${JSON.stringify(fbFindings)}`,
   );
 });
+
+test("same credential in multiple files deduplicates into one finding with locations", async () => {
+  // .env and src/duplicate_key.py contain the identical Stripe key. Two
+  // separate findings would repeat identical prose N times into agent context.
+  const rootDir = "./test-fixtures/vulnerable-app";
+  const files = await fg(["**/*"], { cwd: rootDir, dot: true, onlyFiles: true });
+
+  const findings = await secretsScanner({ rootDir, files });
+  const stripeFindings = findings.filter((f: Finding) => f.description.includes("Stripe Secret Key"));
+  assert.equal(stripeFindings.length, 1, `expected exactly 1 deduped Stripe finding; got ${JSON.stringify(stripeFindings.map((f: Finding) => f.file))}`);
+
+  const f = stripeFindings[0];
+  assert.equal(f.file, ".env", "first location alphabetically should be primary");
+  assert.ok(f.locations, "multi-location finding must carry a locations array");
+  assert.equal(f.locations!.length, 2);
+  assert.ok(f.locations!.some((l) => l.startsWith("src/duplicate_key.py")), "second location listed");
+  assert.match(f.description, /2 locations/);
+});

@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import fg from "fast-glob";
 import { readFile } from "node:fs/promises";
-import { licenseCheck, parsePubspecLock, classifyPubLicenseTags } from "../detectors/license-check.js";
+import { licenseCheck, parsePubspecLock, classifyPubLicenseTags, clearLicenseCache } from "../detectors/license-check.js";
 import type { Finding } from "../types.js";
 
 const rootDir = "./test-fixtures/vulnerable-app";
@@ -47,9 +47,11 @@ test("classifyPubLicenseTags maps copyleft tags correctly and ignores permissive
 
 test("unresolvable pub.dev package produces an explicit 'could not be determined' finding", async (t) => {
   // Deterministic offline test: stub fetch to simulate pub.dev being unreachable.
+  clearLicenseCache();
   const originalFetch = globalThis.fetch;
   t.after(() => {
     globalThis.fetch = originalFetch;
+    clearLicenseCache();
   });
   globalThis.fetch = (async () => {
     throw new Error("simulated network failure");

@@ -1,4 +1,4 @@
-import { readFile } from "node:fs/promises";
+import { readFile, stat as statFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { Detector, Finding } from "../types.js";
 
@@ -49,8 +49,25 @@ function isBinaryLikely(ext: string): boolean {
   return SKIP_EXTENSIONS.has(ext);
 }
 
+/** Files larger than this are skipped for content scanning (memory/time guard). */
+const MAX_SCAN_BYTES = 2 * 1024 * 1024;
+
+interface SecretHit {
+  signatureName: string;
+  value: string;
+  severity: "critical" | "high";
+  firstFile: string;
+  firstLine: number;
+  locations: string[];
+  clientSide: boolean;
+}
+
 export const secretsScanner: Detector = async (ctx) => {
   const findings: Finding[] = [];
+  // Same credential pasted into N files = ONE finding with N locations.
+  // Repeating a near-identical finding per file wastes the calling agent's
+  // context without adding information.
+  const byValue = new Map<string, SecretHit>();
 
   for (const relPath of ctx.files) {
     const ext = relPath.slice(relPath.lastIndexOf("."));
@@ -60,13 +77,6 @@ export const secretsScanner: Detector = async (ctx) => {
     const base = relPath.split("/").pop() ?? "";
     const isEnvFile = /^\.env(\..+)?$/.test(base) && base !== ".env.example" && base !== ".env.sample";
     const isFirebaseClientConfig = FIREBASE_CLIENT_CONFIG_FILES.has(base);
-
-    let content: string;
-    try {
-      content = await readFile(join(ctx.rootDir, relPath), "utf-8");
-    } catch {
-      continue; // unreadable / binary, skip
-    }
 
     if (isEnvFile) {
       findings.push({
@@ -79,41 +89,76 @@ export const secretsScanner: Detector = async (ctx) => {
         suggested_fix:
           `Remove ${relPath} from git tracking (git rm --cached ${relPath}), add it to .gitignore, rotate every credential it contained, and commit only a .env.example with placeholder values.`,
       });
-      // still scan its content below for the report to show exactly what leaked
+    }
+    if (isFirebaseClientConfig) continue;
+
+    let stat;
+    try {
+      stat = await statFile(join(ctx.rootDir, relPath));
+      if (stat.size > MAX_SCAN_BYTES) continue; // too big to be source; skip content scan
+    } catch {
+      continue; // unreadable / vanished, skip
     }
 
-    const lines = content.split("\n");
+    let content: string;
+    try {
+      content = await readFile(join(ctx.rootDir, relPath), "utf-8");
+    } catch {
+      continue; // binary / undecodable, skip
+    }
+
     for (const sig of SIGNATURES) {
-      if (isFirebaseClientConfig) continue;
       sig.pattern.lastIndex = 0;
       let match: RegExpExecArray | null;
       while ((match = sig.pattern.exec(content)) !== null) {
-        if (isPlaceholderValue(match[0])) {
-          // avoid infinite loop on zero-length matches before continuing
-          if (match[0].length === 0) sig.pattern.lastIndex++;
+        const value = match[0];
+        if (value.length === 0) {
+          // avoid infinite loop on zero-length matches
+          sig.pattern.lastIndex++;
           continue;
         }
+        if (isPlaceholderValue(value)) continue;
+
         const upToMatch = content.slice(0, match.index);
         const lineNumber = upToMatch.split("\n").length;
-        const isClientSide = CLIENT_SIDE_HINT_DIRS.some((d) => relPath.startsWith(`${d}/`) || relPath.includes(`/${d}/`));
-
-        findings.push({
-          category: "exposed-secrets",
-          severity: isClientSide ? "critical" : "high",
-          file: relPath,
-          line: lineNumber,
-          description: `Possible ${sig.name} found${isClientSide ? " in client-side code" : ""}.`,
-          why_it_matters: isClientSide
-            ? "This code ships to end users' browsers or app bundles. Anyone can extract the key from a network request, bundled JS, or the compiled app binary."
-            : "Hardcoded secrets in source (even server-side) end up in git history and CI logs, and are easy to leak via an accidental public repo or a misconfigured deploy.",
-          suggested_fix:
-            "Move this value to an environment variable loaded at runtime, ensure it's never bundled into client code, and rotate the exposed credential immediately — assume it's already compromised.",
-        });
-        // avoid infinite loop on zero-length matches
-        if (match[0].length === 0) sig.pattern.lastIndex++;
+        const clientSide = CLIENT_SIDE_HINT_DIRS.some((d) => relPath.startsWith(`${d}/`) || relPath.includes(`/${d}/`));
+        const key = `${sig.name}|${value}`;
+        const existing = byValue.get(key);
+        if (existing) {
+          existing.locations.push(`${relPath}:${lineNumber}`);
+          // escalate severity if any occurrence is client-side
+          if (clientSide) existing.clientSide = true;
+        } else {
+          byValue.set(key, {
+            signatureName: sig.name,
+            value,
+            severity: clientSide ? "critical" : "high",
+            firstFile: relPath,
+            firstLine: lineNumber,
+            locations: [`${relPath}:${lineNumber}`],
+            clientSide,
+          });
+        }
       }
-      void lines; // computed above for line numbers only
     }
+  }
+
+  for (const hit of byValue.values()) {
+    findings.push({
+      category: "exposed-secrets",
+      severity: hit.clientSide ? "critical" : "high",
+      file: hit.firstFile,
+      line: hit.firstLine,
+      ...(hit.locations.length > 1 ? { locations: hit.locations } : {}),
+      description:
+        `Possible ${hit.signatureName} found${hit.clientSide ? " in client-side code" : ""}` +
+        (hit.locations.length > 1 ? ` — same value appears in ${hit.locations.length} locations.` : "."),
+      why_it_matters: hit.clientSide
+        ? "This code ships to end users' browsers or app bundles. Anyone can extract the key from a network request, bundled JS, or the compiled app binary."
+        : "Hardcoded secrets in source (even server-side) end up in git history and CI logs, and are easy to leak via an accidental public repo or a misconfigured deploy.",
+      suggested_fix:
+        "Move this value to an environment variable loaded at runtime, ensure it's never bundled into client code, and rotate the exposed credential immediately — assume it's already compromised.",
+    });
   }
 
   return findings;

@@ -119,12 +119,24 @@ export function licenseTagsFromScore(scoreJson: unknown): string[] {
     .filter((t) => !NON_LICENSE_TAGS.has(t));
 }
 
+// Session-level cache: an agent may scan the same repo (or several Flutter
+// repos) in one session; re-fetching every package's score each time wastes
+// seconds of wall-clock and hammers pub.dev for identical answers.
+const licenseTagCache = new Map<string, string[] | null>();
+
+/** Test hook — clears the module-level pub.dev cache. */
+export function clearLicenseCache(): void {
+  licenseTagCache.clear();
+}
+
 async function fetchPackageLicense(name: string): Promise<string[] | null> {
+  if (licenseTagCache.has(name)) return licenseTagCache.get(name)!;
   // null means "could not determine" for any reason: unreachable network,
   // 404, or a response without usable license tags. All three surface to the
   // user as their own finding rather than being silently skipped.
   // One retry: dogfooding showed a single transient timeout among ~90
   // sequential fetches is common, and each one becomes a noisy finding.
+  let result: string[] | null = null;
   const attempts = [0, 1];
   for (const attempt of attempts) {
     if (attempt > 0) await new Promise((r) => setTimeout(r, 500));
@@ -135,12 +147,32 @@ async function fetchPackageLicense(name: string): Promise<string[] | null> {
       if (!res.ok) continue;
       const json = (await res.json()) as unknown;
       const tags = licenseTagsFromScore(json);
-      if (tags.length > 0) return tags;
+      if (tags.length > 0) {
+        result = tags;
+        break;
+      }
     } catch {
       // fall through to next attempt
     }
   }
-  return null;
+  licenseTagCache.set(name, result);
+  return result;
+}
+
+/** How many pub.dev lookups run in parallel. Small enough to stay polite. */
+const LICENSE_FETCH_CONCURRENCY = 6;
+
+async function mapWithConcurrency<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {
+  const results = new Array<R>(items.length);
+  let next = 0;
+  async function worker() {
+    while (next < items.length) {
+      const idx = next++;
+      results[idx] = await fn(items[idx]);
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, () => worker()));
+  return results;
 }
 
 function copyleftSeverityFor(licenses: string[]): "critical" | "medium" | null {
@@ -165,9 +197,15 @@ async function checkFlutterDependencies(rootDir: string, findings: Finding[]) {
   }
 
   const deps = parsePubspecLock(lockContent);
+  // Parallel lookups keep a ~90-package lockfile scan in seconds, not minutes;
+  // deterministic output order is preserved via indexed results.
+  const licenses = await mapWithConcurrency(deps, LICENSE_FETCH_CONCURRENCY, (dep) =>
+    fetchPackageLicense(dep.name),
+  );
 
-  for (const dep of deps) {
-    const licenseTags = await fetchPackageLicense(dep.name);
+  for (let i = 0; i < deps.length; i++) {
+    const dep = deps[i];
+    const licenseTags = licenses[i];
 
     if (!licenseTags) {
       findings.push({

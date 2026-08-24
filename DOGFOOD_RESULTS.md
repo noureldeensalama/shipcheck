@@ -94,8 +94,12 @@ Each change has a fires-on-risk fixture AND a doesn't-over-fire regression test:
 
 ## Honest limitations observed while dogfooding
 
-- Duplicate findings are reported per-file (the same leaked Supabase key appears 13 times). True,
-  but noisy; dedup-by-value is a candidate improvement, not silently done here — you want every
-  location listed when cleaning up.
+- Duplicate secret findings ARE now deduplicated: the same leaked Supabase key that appeared 13 times
+  in v2 output is one finding with a 13-entry `locations` array (this cut FounderDive's MCP response
+  from ~11.3KB/~2,800 tokens to ~4.1KB/~1,000 tokens). Per-location detail is preserved.
+- Responses are severity-ordered and capped at 100 findings with an explicit `truncated` flag in the
+  summary — a pathological repo cannot silently flood agent context, and truncation is never silent.
+- A nonexistent or non-directory path returns an explicit tool error instead of a zero-findings
+  "clean" result, which would have been misread as "nothing detected."
 - Judgment of the `_gh_probe.js` token is unverifiable statically; the finding stands because a
   shape-valid credential with no placeholder markers should be treated as compromised until proven otherwise.

@@ -22,14 +22,22 @@ lint-on-every-save tool in v1.
 1. Call the `scan_repo` tool with the project root path (default to the current working directory if the
    user doesn't specify one).
 2. Read the returned JSON: `summary` (counts by severity) and `findings` (array of individual issues).
+   The response is already deduplicated and size-capped; if a finding has a `locations` array, it is ONE
+   credential/pattern found in several places — present it as one issue with all locations, not N issues.
 3. Present findings to the user grouped by severity, critical first. For each finding, give:
    - What was found and where (file + line)
    - Why it matters, in plain language — assume the user may not know what PCI, RLS, or copyleft mean
    - The suggested fix
+   Keep your own output lean too: don't repeat identical explanations verbatim per finding when one
+   shared explanation plus a location list says the same thing with fewer words.
 4. **Always** include the tool's own disclaimer near the top of your summary: this is risk-pattern
    detection, not a legal compliance certification, and a zero-findings result means nothing in these
    five categories was detected — not that the app is legally or securely sound.
-5. If the user asks "am I compliant" or "is this legal," explicitly say you can't determine that — you can
+5. If the tool returns an error (path doesn't exist, not a directory), tell the user plainly — do not
+   treat an error as a clean scan.
+6. If `summary.truncated` is true, say so and offer a follow-up scan with a `categories` filter to
+   retrieve findings beyond the cap.
+7. If the user asks "am I compliant" or "is this legal," explicitly say you can't determine that — you can
    only say what risk patterns were or weren't found in these five categories, and point them to an actual
    lawyer for anything with real legal stakes (this matters — do not let the user walk away thinking a
    clean scan is a legal green light).

@@ -10,8 +10,16 @@ export type Category =
 export interface Finding {
   category: Category;
   severity: Severity;
+  /** Primary location: the first place this pattern was found */
   file: string;
   line?: number;
+  /**
+   * All locations when the SAME credential/value appears in multiple files
+   * (e.g. one leaked key pasted into many scripts). Deduplicating identical
+   * values keeps agent context small instead of repeating near-identical
+   * findings N times.
+   */
+  locations?: string[];
   description: string;
   why_it_matters: string;
   suggested_fix: string;
