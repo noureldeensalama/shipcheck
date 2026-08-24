@@ -4,6 +4,12 @@
   "description": "Pre-launch risk scanner for AI-built apps. MCP server exposing static risk detectors (exposed secrets, copyleft license contamination, unauthenticated data endpoints, missing PII/consent artifacts, client-side payment handling) to any MCP-compatible coding agent.",
   "type": "module",
   "main": "dist/index.js",
+  "files": [
+    "dist",
+    "skills",
+    ".claude-plugin",
+    ".mcp.json"
+  ],
   "bin": {
     "shipcheck-mcp": "dist/index.js"
   },
@@ -12,6 +18,7 @@
     "start": "node dist/index.js",
     "dev": "tsx src/index.ts",
     "test": "npm run build && node --test dist/test/*.test.js",
+    "e2e": "npm run build && node scripts/e2e.mjs",
     "verify-fixture": "npm run build && node scripts/verify-fixture.mjs"
   },
   "license": "MIT",

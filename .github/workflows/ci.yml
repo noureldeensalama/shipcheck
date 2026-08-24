@@ -24,3 +24,6 @@ jobs:
 
       - name: Test
         run: npm test
+
+      - name: E2E (real MCP protocol)
+        run: npm run e2e

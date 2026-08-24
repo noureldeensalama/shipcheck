@@ -50,6 +50,22 @@ test("getChangedFiles sees modified + untracked work vs HEAD in a real repo", as
   assert.equal(resolution.reportedChanged, 2);
 });
 
+test("getChangedFiles on a repo with zero commits scans untracked files (founder day one)", async (t) => {
+  const root = await mkdtemp(join(tmpdir(), "shipcheck-fresh-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const git = (...args: string[]) => exec("git", ["-C", root, ...args]);
+  await git("init", "-q");
+  await writeFile(join(root, "first-app.js"), "const x = 1;\n");
+  await mkdir(join(root, "lib"), { recursive: true });
+  await writeFile(join(root, "lib", "util.js"), "export const y = 2;\n");
+
+  const { listFiles } = await import("../lib/list-files.js");
+  const listed = await listFiles(root);
+  const resolution = await getChangedFiles(root, undefined, listed);
+
+  assert.deepEqual(resolution.files.sort(), ["first-app.js", "lib/util.js"]);
+});
+
 test("getChangedFiles throws honest errors for non-repos and bad refs", async (t) => {
   const notARepo = await mkdtemp(join(tmpdir(), "shipcheck-norepo-"));
   t.after(() => rm(notARepo, { recursive: true, force: true }));

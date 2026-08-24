@@ -1,0 +1,8 @@
+{
+  "name": "nested-frontend",
+  "version": "1.0.0",
+  "dependencies": {
+    "gpl-bundled-lib": "^1.0.0",
+    "nice-mit-lib": "^2.0.0"
+  }
+}

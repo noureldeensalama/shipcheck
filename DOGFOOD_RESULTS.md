@@ -92,6 +92,28 @@ Each change has a fires-on-risk fixture AND a doesn't-over-fire regression test:
    policy" no longer suppress the finding.
 6. **license-check**: single retry before reporting an undetermined pub.dev license.
 
+## Post-fix verification (2026-08-25): the loop works
+
+FounderDive's team acted on this report, and a re-scan tracked the cleanup exactly:
+
+| v2/v3 finding | Action taken upstream | Re-scan result |
+|---|---|---|
+| Supabase service-role JWT in 13 e2e scripts | Commit `2e4f6d33` — all scripts now load it from env via shared loader; `git grep` for the signature returns zero code hits | **0 findings in code.** One residual hit in `AUDIT_REPORT.md`, where a copy of the key survives as quoted "evidence" — correct catch; that document still leaks the credential until it's rotated and scrubbed. |
+| 3 unauthenticated `/api/debug/*` routes | Removed from `backend/main.py` (working tree) | **0 findings** — routes gone from source. |
+| GitHub PAT-shaped token in `_gh_probe.js` | Not yet addressed | Still flagged. Unresolved, correctly. |
+
+Also fixed on ShipCheck's side after re-dogfooding: the license checker only read a ROOT
+`package.json`, which made FounderDive's entire `frontend/package.json` dependency tree (20 deps)
+invisible. It now checks every `package.json` and every `pubspec.lock` in the repo, resolving deps
+against each manifest's own `node_modules` (verified by a nested-package fixture). FounderDive shows
+zero license findings because its frontend deps aren't installed in the working tree — documented,
+honest behavior, not a silent miss.
+
+One more pub.dev lesson learned while re-scanning Fitloom: the score API sometimes serves degraded
+objects (`maxPoints: 0`, no `license:*` tags — verified with direct one-at-a-time curls, so NOT caused
+by scanner concurrency). The fetcher now retries with growing backoff and reports WHY a license is
+undetermined ("pub.dev returned no license tags" vs "unreachable") instead of one vague message.
+
 ## Honest limitations observed while dogfooding
 
 - Duplicate secret findings ARE now deduplicated: the same leaked Supabase key that appeared 13 times

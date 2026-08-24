@@ -18,63 +18,81 @@ function normalize(license: string): string {
   return (corrected ?? license).replace(/\+$/, "").replace(/\-only$/, "").replace(/\-or-later$/, "");
 }
 
-async function checkNodeDependencies(rootDir: string, findings: Finding[]) {
-  const nodeModulesPkgs = new Set<string>();
+/**
+ * Checks every package.json in the repo — not just the root one. AI-built apps
+ * are routinely multi-package (frontend/package.json + backend/, workspaces,
+ * admin panels); dogfooding found a real repo whose entire 20-dependency
+ * frontend tree was invisible to a root-only check. Dependencies are resolved
+ * against the node_modules NEXT TO each package.json, mirroring how npm
+ * actually resolves them.
+ */
+async function checkNodeDependencies(rootDir: string, files: string[], findings: Finding[]) {
+  const packageJsonFiles = files.filter((f) => f === "package.json" || f.endsWith("/package.json"));
+  if (packageJsonFiles.length === 0) return; // not a Node project (or FastAPI/Flutter only)
+
+  for (const pkgPath of packageJsonFiles) {
+    const pkgDir = pkgPath.slice(0, pkgPath.length - "package.json".length); // "" for root, "frontend/" etc.
+    let deps: string[];
+    try {
+      const pkgRaw = await readFile(join(rootDir, pkgPath), "utf-8");
+      const pkg = JSON.parse(pkgRaw);
+      deps = Object.keys({ ...pkg.dependencies, ...pkg.optionalDependencies });
+    } catch {
+      continue; // malformed/unreadable package.json — not this detector's finding to make
+    }
+
+    for (const dep of deps) {
+      await checkNodeDependency(rootDir, pkgDir, dep, findings);
+    }
+  }
+}
+
+async function checkNodeDependency(rootDir: string, pkgDir: string, dep: string, findings: Finding[]) {
+  // Where the dependency's manifest lives, for honest reporting regardless of nesting.
+  const reportPath = `${pkgDir}node_modules/${dep}/package.json`;
   try {
-    const pkgRaw = await readFile(join(rootDir, "package.json"), "utf-8");
-    const pkg = JSON.parse(pkgRaw);
-    for (const dep of Object.keys({ ...pkg.dependencies, ...pkg.optionalDependencies })) {
-      nodeModulesPkgs.add(dep);
+    const depPkgRaw = await readFile(join(rootDir, pkgDir, "node_modules", dep, "package.json"), "utf-8");
+    const depPkg = JSON.parse(depPkgRaw);
+    const rawLicense: string | undefined =
+      typeof depPkg.license === "string" ? depPkg.license : depPkg.license?.type ?? depPkg.licenses?.[0]?.type;
+
+    if (!rawLicense) {
+      findings.push({
+        category: "copyleft-license",
+        severity: "medium",
+        file: reportPath,
+        description: `Dependency '${dep}' has no declared license.`,
+        why_it_matters: "Undeclared license means you have no legal basis to redistribute or use the package commercially — technically all rights reserved by default.",
+        suggested_fix: `Check ${dep}'s repository directly for a LICENSE file, or replace it with a package that declares one clearly.`,
+      });
+      return;
+    }
+
+    const normalized = normalize(rawLicense);
+    if (STRONG_COPYLEFT.has(normalized)) {
+      findings.push({
+        category: "copyleft-license",
+        severity: "critical",
+        file: reportPath,
+        description: `Dependency '${dep}' is licensed under ${rawLicense} (strong copyleft).`,
+        why_it_matters:
+          "Strong copyleft licenses like GPL/AGPL generally require you to release your application's source code under the same license if you distribute or (for AGPL) even network-serve it. This can force disclosure of your entire proprietary codebase.",
+        suggested_fix: `Find a permissively-licensed alternative to '${dep}' (MIT/Apache-2.0/BSD), or consult a lawyer before shipping if it must stay.`,
+      });
+    } else if (WEAK_COPYLEFT.has(normalized)) {
+      findings.push({
+        category: "copyleft-license",
+        severity: "medium",
+        file: reportPath,
+        description: `Dependency '${dep}' is licensed under ${rawLicense} (weak copyleft).`,
+        why_it_matters:
+          "Weak copyleft is usually fine if you only dynamically link/import the package without modifying its source, but modifying it or statically bundling it can trigger disclosure requirements.",
+        suggested_fix: `Confirm you're using '${dep}' unmodified and as an external dependency, not a forked/vendored copy.`,
+      });
     }
   } catch {
-    return; // no package.json, not a Node project (or FastAPI/Flutter only)
-  }
-
-  for (const dep of nodeModulesPkgs) {
-    try {
-      const depPkgRaw = await readFile(join(rootDir, "node_modules", dep, "package.json"), "utf-8");
-      const depPkg = JSON.parse(depPkgRaw);
-      const rawLicense: string | undefined =
-        typeof depPkg.license === "string" ? depPkg.license : depPkg.license?.type ?? depPkg.licenses?.[0]?.type;
-
-      if (!rawLicense) {
-        findings.push({
-          category: "copyleft-license",
-          severity: "medium",
-          file: `node_modules/${dep}/package.json`,
-          description: `Dependency '${dep}' has no declared license.`,
-          why_it_matters: "Undeclared license means you have no legal basis to redistribute or use the package commercially — technically all rights reserved by default.",
-          suggested_fix: `Check ${dep}'s repository directly for a LICENSE file, or replace it with a package that declares one clearly.`,
-        });
-        continue;
-      }
-
-      const normalized = normalize(rawLicense);
-      if (STRONG_COPYLEFT.has(normalized)) {
-        findings.push({
-          category: "copyleft-license",
-          severity: "critical",
-          file: `node_modules/${dep}/package.json`,
-          description: `Dependency '${dep}' is licensed under ${rawLicense} (strong copyleft).`,
-          why_it_matters:
-            "Strong copyleft licenses like GPL/AGPL generally require you to release your application's source code under the same license if you distribute or (for AGPL) even network-serve it. This can force disclosure of your entire proprietary codebase.",
-          suggested_fix: `Find a permissively-licensed alternative to '${dep}' (MIT/Apache-2.0/BSD), or consult a lawyer before shipping if it must stay.`,
-        });
-      } else if (WEAK_COPYLEFT.has(normalized)) {
-        findings.push({
-          category: "copyleft-license",
-          severity: "medium",
-          file: `node_modules/${dep}/package.json`,
-          description: `Dependency '${dep}' is licensed under ${rawLicense} (weak copyleft).`,
-          why_it_matters:
-            "Weak copyleft is usually fine if you only dynamically link/import the package without modifying its source, but modifying it or statically bundling it can trigger disclosure requirements.",
-          suggested_fix: `Confirm you're using '${dep}' unmodified and as an external dependency, not a forked/vendored copy.`,
-        });
-      }
-    } catch {
-      // package not installed / no package.json found in node_modules — skip silently,
-      // this just means `npm install` hasn't been run, not a finding worth surfacing.
-    }
+    // package not installed / no package.json found in node_modules — skip silently,
+    // this just means `npm install` hasn't been run, not a finding worth surfacing.
   }
 }
 
@@ -122,24 +140,28 @@ export function licenseTagsFromScore(scoreJson: unknown): string[] {
 // Session-level cache: an agent may scan the same repo (or several Flutter
 // repos) in one session; re-fetching every package's score each time wastes
 // seconds of wall-clock and hammers pub.dev for identical answers.
-const licenseTagCache = new Map<string, string[] | null>();
+const licenseTagCache = new Map<string, LicenseLookup>();
 
 /** Test hook — clears the module-level pub.dev cache. */
 export function clearLicenseCache(): void {
   licenseTagCache.clear();
 }
 
-async function fetchPackageLicense(name: string): Promise<string[] | null> {
-  if (licenseTagCache.has(name)) return licenseTagCache.get(name)!;
-  // null means "could not determine" for any reason: unreachable network,
-  // 404, or a response without usable license tags. All three surface to the
-  // user as their own finding rather than being silently skipped.
-  // One retry: dogfooding showed a single transient timeout among ~90
-  // sequential fetches is common, and each one becomes a noisy finding.
-  let result: string[] | null = null;
-  const attempts = [0, 1];
-  for (const attempt of attempts) {
-    if (attempt > 0) await new Promise((r) => setTimeout(r, 500));
+export type LicenseLookup =
+  | { ok: true; tags: string[] }
+  | { ok: false; reason: "unreachable" | "no-license-tags" };
+
+async function fetchPackageLicense(name: string): Promise<LicenseLookup> {
+  const cached = licenseTagCache.get(name);
+  if (cached) return cached;
+  // Dogfooding showed two distinct failure modes: transient network errors,
+  // and pub.dev briefly serving degraded score objects (maxPoints: 0, no
+  // license:* tags — verified against the live API). Both are temporary;
+  // growing backoff rides out the common window without hammering.
+  let result: LicenseLookup = { ok: false, reason: "unreachable" };
+  const delays = [0, 300, 1500];
+  for (const delay of delays) {
+    if (delay > 0) await new Promise((r) => setTimeout(r, delay));
     try {
       const res = await fetch(`https://pub.dev/api/packages/${encodeURIComponent(name)}/score`, {
         signal: AbortSignal.timeout(10_000),
@@ -148,11 +170,12 @@ async function fetchPackageLicense(name: string): Promise<string[] | null> {
       const json = (await res.json()) as unknown;
       const tags = licenseTagsFromScore(json);
       if (tags.length > 0) {
-        result = tags;
+        result = { ok: true, tags };
         break;
       }
+      result = { ok: false, reason: "no-license-tags" };
     } catch {
-      // fall through to next attempt
+      result = { ok: false, reason: "unreachable" };
     }
   }
   licenseTagCache.set(name, result);
@@ -188,14 +211,26 @@ export function classifyPubLicenseTags(tags: string[]): "critical" | "medium" | 
   return copyleftSeverityFor(tags.map((t) => normalize(t)));
 }
 
-async function checkFlutterDependencies(rootDir: string, findings: Finding[]) {
-  let lockContent: string;
-  try {
-    lockContent = await readFile(join(rootDir, "pubspec.lock"), "utf-8");
-  } catch {
-    return; // not a Flutter project, nothing to do
-  }
+/**
+ * Checks every pubspec.lock in the repo — Flutter monorepos (melos-style
+ * packages/*) have one per package, and each resolves its own dependency set.
+ */
+async function checkFlutterDependencies(rootDir: string, files: string[], findings: Finding[]) {
+  const lockFiles = files.filter((f) => f === "pubspec.lock" || f.endsWith("/pubspec.lock"));
+  if (lockFiles.length === 0) return; // not a Flutter project, nothing to do
 
+  for (const lockPath of lockFiles) {
+    let lockContent: string;
+    try {
+      lockContent = await readFile(join(rootDir, lockPath), "utf-8");
+    } catch {
+      continue;
+    }
+    await checkPubspecLock(lockPath, lockContent, findings);
+  }
+}
+
+async function checkPubspecLock(lockPath: string, lockContent: string, findings: Finding[]) {
   const deps = parsePubspecLock(lockContent);
   // Parallel lookups keep a ~90-package lockfile scan in seconds, not minutes;
   // deterministic output order is preserved via indexed results.
@@ -205,14 +240,18 @@ async function checkFlutterDependencies(rootDir: string, findings: Finding[]) {
 
   for (let i = 0; i < deps.length; i++) {
     const dep = deps[i];
-    const licenseTags = licenses[i];
+    const lookup = licenses[i];
+    const reportPath = `${lockPath} (${dep.name} ${dep.version})`;
 
-    if (!licenseTags) {
+    if (!lookup.ok) {
       findings.push({
         category: "copyleft-license",
         severity: "medium",
-        file: `pubspec.lock (${dep.name} ${dep.version})`,
-        description: `License for pub.dev dependency '${dep.name}' could not be determined (pub.dev unreachable, package not found, or no license data).`,
+        file: reportPath,
+        description:
+          lookup.reason === "no-license-tags"
+            ? `License for pub.dev dependency '${dep.name}' could not be determined — pub.dev returned score data with no license tags (a transient state on pub.dev's side; re-scanning usually resolves it).`
+            : `License for pub.dev dependency '${dep.name}' could not be determined (pub.dev unreachable or package not found).`,
         why_it_matters:
           "Undetermined license means you have no confirmed legal basis to use the package commercially — some packages misreport or omit license metadata entirely.",
         suggested_fix: `Check '${dep.name}' directly on pub.dev or its source repository for a LICENSE file, or replace it with a package that declares one clearly.`,
@@ -220,6 +259,7 @@ async function checkFlutterDependencies(rootDir: string, findings: Finding[]) {
       continue;
     }
 
+    const licenseTags = lookup.tags;
     const severity = classifyPubLicenseTags(licenseTags);
     if (severity === "critical") {
       findings.push({
@@ -247,7 +287,7 @@ async function checkFlutterDependencies(rootDir: string, findings: Finding[]) {
 
 export const licenseCheck: Detector = async (ctx) => {
   const findings: Finding[] = [];
-  await checkNodeDependencies(ctx.rootDir, findings);
-  await checkFlutterDependencies(ctx.rootDir, findings);
+  await checkNodeDependencies(ctx.rootDir, ctx.files, findings);
+  await checkFlutterDependencies(ctx.rootDir, ctx.files, findings);
   return findings;
 };

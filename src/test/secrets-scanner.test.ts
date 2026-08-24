@@ -76,13 +76,31 @@ test("same credential in multiple files deduplicates into one finding with locat
   const files = await fg(["**/*"], { cwd: rootDir, dot: true, onlyFiles: true });
 
   const findings = await secretsScanner({ rootDir, files });
-  const stripeFindings = findings.filter((f: Finding) => f.description.includes("Stripe Secret Key"));
-  assert.equal(stripeFindings.length, 1, `expected exactly 1 deduped Stripe finding; got ${JSON.stringify(stripeFindings.map((f: Finding) => f.file))}`);
+  const sharedKeyFindings = findings.filter(
+    (f: Finding) => f.description.includes("Stripe Secret Key") && f.file === ".env",
+  );
+  assert.equal(sharedKeyFindings.length, 1);
 
-  const f = stripeFindings[0];
-  assert.equal(f.file, ".env", "first location alphabetically should be primary");
+  const f = sharedKeyFindings[0];
   assert.ok(f.locations, "multi-location finding must carry a locations array");
   assert.equal(f.locations!.length, 2);
   assert.ok(f.locations!.some((l) => l.startsWith("src/duplicate_key.py")), "second location listed");
   assert.match(f.description, /2 locations/);
+});
+
+test("project-prefixed env variants (config/backend.env) fire as committed env files", async () => {
+  // dotenv conventions like backend.env / config.env are real committed-env
+  // leaks; only dot-prefixed names were caught before this fixture existed.
+  const rootDir = "./test-fixtures/vulnerable-app";
+  const files = await fg(["**/*"], { cwd: rootDir, dot: true, onlyFiles: true });
+
+  const findings = await secretsScanner({ rootDir, files });
+
+  const envFileFinding = findings.find((f: Finding) => f.file === "config/backend.env" && !f.line);
+  assert.ok(envFileFinding, "expected a committed-env-file finding for config/backend.env");
+  assert.equal(envFileFinding!.severity, "critical");
+
+  // ...plus its own distinct key content
+  const keyFinding = findings.find((f: Finding) => f.file === "config/backend.env" && f.line !== undefined);
+  assert.ok(keyFinding, "expected the key inside config/backend.env to be flagged");
 });

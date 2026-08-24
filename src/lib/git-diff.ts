@@ -57,25 +57,34 @@ export async function getChangedFiles(
   }
 
   const ref = base && base.length > 0 ? base : "HEAD";
+  let headExists = true;
   try {
     await exec("git", ["-C", rootDir, "rev-parse", "--verify", "--quiet", `${ref}^{commit}`]);
   } catch {
-    throw new Error(`Base ref '${ref}' does not exist in this repository.`);
+    if (ref !== "HEAD") {
+      throw new Error(`Base ref '${ref}' does not exist in this repository.`);
+    }
+    // A repo with zero commits (founder, day one) has no HEAD. Everything
+    // not yet committed is by definition untracked, so the ls-files call
+    // below already covers it — don't fail, just skip the diff half.
+    headExists = false;
   }
 
   // -z: filenames come back NUL-separated so spaces/quotes in paths survive.
-  const [{ stdout: diffOut }, { stdout: othersOut }] = await Promise.all([
-    exec("git", [
-      "-C", rootDir,
-      "diff", "--name-only", "--diff-filter=ACMR", "-z",
-      ...(ref === "HEAD" ? [] : [ref]),
-    ]),
+  const [diffRes, othersRes] = await Promise.all([
+    headExists
+      ? exec("git", [
+          "-C", rootDir,
+          "diff", "--name-only", "--diff-filter=ACMR", "-z",
+          ...(ref === "HEAD" ? [] : [ref]),
+        ])
+      : Promise.resolve({ stdout: "" }),
     exec("git", ["-C", rootDir, "ls-files", "--others", "--exclude-standard", "-z"]),
   ]);
 
   const splitNul = (s: string) => s.split("\0").filter((x) => x.length > 0);
-  const changed = splitNul(diffOut);
-  const untracked = splitNul(othersOut);
+  const changed = splitNul(diffRes.stdout);
+  const untracked = splitNul(othersRes.stdout);
 
   return {
     files: resolveDiffFiles(changed, untracked, availableFiles),

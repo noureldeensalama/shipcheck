@@ -52,6 +52,10 @@ export async function listFiles(rootDir: string): Promise<string[]> {
     dot: true,
     onlyFiles: true,
     ignore: DEFAULT_EXCLUDES,
+    // A symlink pointing outside the repo (to $HOME, /etc, another project)
+    // must not drag external trees into a scan — or leak their contents into
+    // findings as if they were project source.
+    followSymbolicLinks: false,
   });
 
   return all.filter((f) => !ig.ignores(f));

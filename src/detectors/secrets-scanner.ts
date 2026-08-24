@@ -55,12 +55,13 @@ const MAX_SCAN_BYTES = 2 * 1024 * 1024;
 interface SecretHit {
   signatureName: string;
   value: string;
-  severity: "critical" | "high";
-  firstFile: string;
-  firstLine: number;
-  locations: string[];
   clientSide: boolean;
+  /** Every occurrence, in scan order — made deterministic before emitting. */
+  spots: { file: string; line: number }[];
 }
+
+/** How many files the secrets scanner reads concurrently. */
+const FILE_READ_CONCURRENCY = 12;
 
 export const secretsScanner: Detector = async (ctx) => {
   const findings: Finding[] = [];
@@ -69,13 +70,28 @@ export const secretsScanner: Detector = async (ctx) => {
   // context without adding information.
   const byValue = new Map<string, SecretHit>();
 
-  for (const relPath of ctx.files) {
+  /**
+   * Scans one file, pushing env-file findings and accumulating signature hits
+   * into byValue. JS runs each worker's sync sections atomically, so the
+   * shared Map needs no locking; order of location entries is nondeterministic
+   * across workers but content is identical.
+   */
+  const scanOne = async (relPath: string): Promise<void> => {
     const ext = relPath.slice(relPath.lastIndexOf("."));
-    if (isBinaryLikely(ext)) continue;
+    if (isBinaryLikely(ext)) return;
 
     // Committed .env files are a finding on their own, regardless of content match.
+    // Matches the standard dotenv convention in any position: `.env`,
+    // `.env.local`, and project-prefixed variants like `backend.env` /
+    // `config.env`. Deliberately NOT bare `*.env.example`-suffixed names
+    // (handled below) or unrelated words merely containing "env".
     const base = relPath.split("/").pop() ?? "";
-    const isEnvFile = /^\.env(\..+)?$/.test(base) && base !== ".env.example" && base !== ".env.sample";
+    const isEnvFile =
+      (/^\.env(\..+)?$/.test(base) || /^[A-Za-z0-9._-]+\.env$/i.test(base)) &&
+      base !== ".env.example" &&
+      base !== ".env.sample" &&
+      !base.endsWith(".env.example") &&
+      !base.endsWith(".env.sample");
     const isFirebaseClientConfig = FIREBASE_CLIENT_CONFIG_FILES.has(base);
 
     if (isEnvFile) {
@@ -90,21 +106,21 @@ export const secretsScanner: Detector = async (ctx) => {
           `Remove ${relPath} from git tracking (git rm --cached ${relPath}), add it to .gitignore, rotate every credential it contained, and commit only a .env.example with placeholder values.`,
       });
     }
-    if (isFirebaseClientConfig) continue;
+    if (isFirebaseClientConfig) return;
 
     let stat;
     try {
       stat = await statFile(join(ctx.rootDir, relPath));
-      if (stat.size > MAX_SCAN_BYTES) continue; // too big to be source; skip content scan
+      if (stat.size > MAX_SCAN_BYTES) return; // too big to be source; skip content scan
     } catch {
-      continue; // unreadable / vanished, skip
+      return; // unreadable / vanished, skip
     }
 
     let content: string;
     try {
       content = await readFile(join(ctx.rootDir, relPath), "utf-8");
     } catch {
-      continue; // binary / undecodable, skip
+      return; // binary / undecodable, skip
     }
 
     for (const sig of SIGNATURES) {
@@ -125,34 +141,48 @@ export const secretsScanner: Detector = async (ctx) => {
         const key = `${sig.name}|${value}`;
         const existing = byValue.get(key);
         if (existing) {
-          existing.locations.push(`${relPath}:${lineNumber}`);
+          existing.spots.push({ file: relPath, line: lineNumber });
           // escalate severity if any occurrence is client-side
           if (clientSide) existing.clientSide = true;
         } else {
           byValue.set(key, {
             signatureName: sig.name,
             value,
-            severity: clientSide ? "critical" : "high",
-            firstFile: relPath,
-            firstLine: lineNumber,
-            locations: [`${relPath}:${lineNumber}`],
+            spots: [{ file: relPath, line: lineNumber }],
             clientSide,
           });
         }
       }
     }
-  }
+  };
+
+  let next = 0;
+  const files = ctx.files;
+  await Promise.all(
+    Array.from({ length: Math.min(FILE_READ_CONCURRENCY, files.length) }, async () => {
+      while (next < files.length) {
+        const idx = next++;
+        await scanOne(files[idx]);
+      }
+    }),
+  );
 
   for (const hit of byValue.values()) {
+    // Deterministic output regardless of read concurrency: locations sorted,
+    // primary = first alphabetically (matches how file listings are ordered).
+    const spots = [...hit.spots].sort(
+      (a, b) => a.file.localeCompare(b.file) || a.line - b.line,
+    );
+    const locations = spots.map((s) => `${s.file}:${s.line}`);
     findings.push({
       category: "exposed-secrets",
       severity: hit.clientSide ? "critical" : "high",
-      file: hit.firstFile,
-      line: hit.firstLine,
-      ...(hit.locations.length > 1 ? { locations: hit.locations } : {}),
+      file: spots[0].file,
+      line: spots[0].line,
+      ...(locations.length > 1 ? { locations } : {}),
       description:
         `Possible ${hit.signatureName} found${hit.clientSide ? " in client-side code" : ""}` +
-        (hit.locations.length > 1 ? ` — same value appears in ${hit.locations.length} locations.` : "."),
+        (locations.length > 1 ? ` — same value appears in ${locations.length} locations.` : "."),
       why_it_matters: hit.clientSide
         ? "This code ships to end users' browsers or app bundles. Anyone can extract the key from a network request, bundled JS, or the compiled app binary."
         : "Hardcoded secrets in source (even server-side) end up in git history and CI logs, and are easy to leak via an accidental public repo or a misconfigured deploy.",
