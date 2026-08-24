@@ -1,0 +1,20 @@
+<!doctype html>
+<html>
+  <head>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-EXAMPLE123456"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+    </script>
+  </head>
+  <body>
+    <!-- Counterexample fixture: same collectors as vulnerable-app/src/signup.html,
+         but a privacy policy artifact exists in the repo, so pii-consent must not fire. -->
+    <form action="/api/signup" method="post">
+      <label>Email <input type="email" name="email" required /></label>
+      <button type="submit">Sign up</button>
+    </form>
+    <p>By signing up you agree to our privacy policy.</p>
+  </body>
+</html>

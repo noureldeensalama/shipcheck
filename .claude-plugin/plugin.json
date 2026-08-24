@@ -1,0 +1,13 @@
+{
+  "name": "shipcheck",
+  "displayName": "ShipCheck",
+  "description": "Pre-launch risk scanner for AI-built apps. Flags exposed secrets, copyleft-licensed dependencies, unauthenticated data endpoints, missing privacy/consent artifacts, and client-side payment handling before you ship.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Nour Salama"
+  },
+  "license": "MIT",
+  "homepage": "https://github.com/n0ureldeen/shipcheck",
+  "repository": "https://github.com/n0ureldeen/shipcheck",
+  "keywords": ["security", "static-analysis", "pre-launch", "risk", "compliance-adjacent", "mcp"]
+}

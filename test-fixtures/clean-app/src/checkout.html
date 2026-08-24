@@ -1,0 +1,27 @@
+<!doctype html>
+<html>
+  <body>
+    <!-- Counterexample fixture: split card-field element ids look like raw card
+         inputs, but they are Stripe Elements hosted fields (card data goes straight
+         from the iframe to Stripe), so payment-handling must not fire. -->
+    <div id="checkout">
+      <form id="payment-form">
+        <div id="card-number"></div>
+        <div id="card-expiry"></div>
+        <div id="card-cvc"></div>
+        <button type="submit">Pay</button>
+      </form>
+    </div>
+    <script src="https://js.stripe.com/v3/"></script>
+    <script>
+      const stripe = Stripe("pk_test_placeholder");
+      const elements = stripe.elements();
+      elements.create("cardNumber").mount("#card-number");
+      elements.create("cardExpiry").mount("#card-expiry");
+      elements.create("cardCvc").mount("#card-cvc");
+      stripe.confirmCardPayment("{PAYMENT_INTENT_CLIENT_SECRET}", {
+        payment_method: { card: cardElement },
+      });
+    </script>
+  </body>
+</html>

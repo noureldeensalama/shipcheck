@@ -1,0 +1,12 @@
+name: vulnerable_flutter_app
+description: Fixture with a weak-copyleft (LGPL-3.0) pub.dev dependency.
+publish_to: "none"
+version: 1.0.0
+
+environment:
+  sdk: ">=3.4.0 <4.0.0"
+
+dependencies:
+  ffmpeg_kit_flutter: ^6.0.3
+  http: ^1.2.2
+  shared_preferences: ^2.5.5

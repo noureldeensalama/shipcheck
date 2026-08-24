@@ -1,0 +1,35 @@
+packages:
+  args:
+    dependency: transitive
+    description:
+      name: args
+      sha256: bf9f5cadba8d86404c155cd2825301e2b8a4e0d3b8b6c9f4b7e0a3d1e5c8f2a9
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.6.0"
+  ffmpeg_kit_flutter:
+    dependency: "direct main"
+    description:
+      name: ffmpeg_kit_flutter
+      sha256: a1b2c3d4e5f60718293a4b5c6d7e8f901234567890abcdef1234567890abcdef12
+      url: "https://pub.dev"
+    source: hosted
+    version: "6.0.3"
+  http:
+    dependency: "direct main"
+    description:
+      name: http
+      sha256: c3d4e5f6a7b80919283a4b5c6d7e8f901234567890abcdef1234567890abcdef34
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.2.2"
+  shared_preferences:
+    dependency: "direct main"
+    description:
+      name: shared_preferences
+      sha256: d4e5f6a7b8c90919283a4b5c6d7e8f901234567890abcdef1234567890abcdef45
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.5.5"
+sdks:
+  dart: ">=3.4.0 <4.0.0"

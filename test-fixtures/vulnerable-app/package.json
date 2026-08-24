@@ -1,0 +1,6 @@
+{
+  "name": "vulnerable-app",
+  "dependencies": {
+    "left-pad": "1.3.0"
+  }
+}

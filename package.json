@@ -1,0 +1,43 @@
+{
+  "name": "shipcheck-mcp",
+  "version": "0.1.0",
+  "description": "Pre-launch risk scanner for AI-built apps. MCP server exposing static risk detectors (exposed secrets, copyleft license contamination, unauthenticated data endpoints, missing PII/consent artifacts, client-side payment handling) to any MCP-compatible coding agent.",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "shipcheck-mcp": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsx src/index.ts",
+    "test": "npm run build && node --test dist/test/*.test.js",
+    "verify-fixture": "npm run build && node scripts/verify-fixture.mjs"
+  },
+  "license": "MIT",
+  "author": "Nour Salama",
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "security",
+    "claude-code",
+    "static-analysis",
+    "ai-agents"
+  ],
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "fast-glob": "^3.3.2",
+    "ignore": "^5.3.1",
+    "spdx-correct": "^3.2.0",
+    "yaml": "^2.9.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^22.5.0",
+    "tsx": "^4.16.2",
+    "typescript": "^5.5.4"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

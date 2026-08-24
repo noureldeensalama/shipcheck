@@ -1,0 +1,13 @@
+{
+  "name": "shipcheck-marketplace",
+  "owner": {
+    "name": "Nour Salama"
+  },
+  "plugins": [
+    {
+      "name": "shipcheck",
+      "source": "./",
+      "description": "Pre-launch risk scanner for AI-built apps: exposed secrets, copyleft license contamination, unauthenticated data endpoints, missing PII/consent artifacts, and client-side payment handling."
+    }
+  ]
+}
