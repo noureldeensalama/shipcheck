@@ -30,6 +30,12 @@ export interface DetectorContext {
   rootDir: string;
   /** Relative file paths (already filtered by .gitignore + common excludes) */
   files: string[];
+  /**
+   * Per-scan content cache shared by all detectors so each file is read from
+   * disk exactly once. Created by the server; detectors go through
+   * lib/content.loadFile rather than reading directly.
+   */
+  contentCache?: Map<string, string | null>;
 }
 
 export type Detector = (ctx: DetectorContext) => Promise<Finding[]>;

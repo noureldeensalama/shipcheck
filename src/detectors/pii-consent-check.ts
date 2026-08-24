@@ -1,12 +1,19 @@
-import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { Detector, Finding } from "../types.js";
+import { loadFile } from "../lib/content.js";
 
 const PII_COLLECTORS: { name: string; pattern: RegExp }[] = [
   { name: "Google Analytics", pattern: /(gtag\(|G-[A-Z0-9]{6,}|googletagmanager\.com)/ },
   { name: "Mixpanel", pattern: /mixpanel\.(init|track)/ },
   { name: "Segment", pattern: /analytics\.(identify|track)\s*\(/ },
   { name: "Firebase Analytics", pattern: /firebase\/analytics|logEvent\s*\(/ },
+  // Modern analytics/pixels commonly scaffolded by AI agents (dogfooding
+  // found PostHog in a real repo, invisible to the v1 collector list).
+  { name: "PostHog", pattern: /posthog\.(init|capture|identify)/ },
+  { name: "Meta Pixel", pattern: /\bfbq\s*\(\s*['"]init['"]/ },
+  { name: "Hotjar", pattern: /(\bhj\s*\(['"]|hotjar)/i },
+  { name: "Microsoft Clarity", pattern: /clarity\.ms/ },
+  { name: "Amplitude", pattern: /amplitude\.(init|getInstance|logEvent)/ },
   { name: "Auth provider collecting email/name", pattern: /(signUp|createUserWithEmailAndPassword|supabase\.auth\.signUp)/ },
   { name: "Email input field", pattern: /type=["']email["']/ },
 ];
@@ -51,12 +58,9 @@ export const piiConsentCheck: Detector = async (ctx) => {
     if (!/\.(js|ts|jsx|tsx|dart|py|html)$/.test(relPath)) continue;
     if (relPath.includes("node_modules")) continue;
 
-    let content: string;
-    try {
-      content = await readFile(join(ctx.rootDir, relPath), "utf-8");
-    } catch {
-      continue;
-    }
+    const loaded = await loadFile(ctx, relPath);
+    if (loaded.state === "skipped") continue;
+    const content = loaded.content;
 
     // A link/route to a privacy policy also counts as an artifact.
     if (contentLooksLikePolicyArtifact(content)) {

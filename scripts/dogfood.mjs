@@ -16,10 +16,11 @@ if (!rootDir) {
 const files = await listFiles(rootDir);
 
 const detectors = { secretsScanner, licenseCheck, unauthEndpoints, piiConsentCheck, paymentHandling };
+const contentCache = new Map();
 const out = {};
 for (const [name, fn] of Object.entries(detectors)) {
   try {
-    out[name] = await fn({ rootDir, files });
+    out[name] = await fn({ rootDir, files, contentCache });
   } catch (err) {
     out[name] = [{ error: String(err.message ?? err) }];
   }

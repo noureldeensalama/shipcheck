@@ -1,6 +1,6 @@
-import { readFile, stat as statFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { Detector, Finding } from "../types.js";
+import { loadFile } from "../lib/content.js";
 
 /**
  * Known secret formats with high-confidence regex signatures.
@@ -12,15 +12,43 @@ const SIGNATURES: { name: string; pattern: RegExp }[] = [
   { name: "AWS Secret Access Key (assigned)", pattern: /aws_secret_access_key\s*=\s*['"][A-Za-z0-9/+=]{40}['"]/gi },
   { name: "OpenAI API Key", pattern: /\bsk-[A-Za-z0-9]{20,}\b/g },
   { name: "Anthropic API Key", pattern: /\bsk-ant-[A-Za-z0-9\-_]{20,}\b/g },
+  { name: "OpenRouter API Key", pattern: /\bsk-or-v1-[a-f0-9]{64}\b/g },
   { name: "Stripe Secret Key", pattern: /\bsk_(live|test)_[A-Za-z0-9]{24,}\b/g },
   { name: "Stripe Restricted Key", pattern: /\brk_(live|test)_[A-Za-z0-9]{24,}\b/g },
+  // Supabase-shaped JWTs get role-decoded below before reporting.
   { name: "Supabase Service Role Key (JWT)", pattern: /\beyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9[A-Za-z0-9._-]{20,}\b/g },
   { name: "Google API Key", pattern: /\bAIza[0-9A-Za-z\-_]{35}\b/g },
   { name: "Firebase/Google OAuth Client Secret", pattern: /GOCSPX-[A-Za-z0-9\-_]{20,}/g },
   { name: "GitHub Personal Access Token", pattern: /\bgh[pousr]_[A-Za-z0-9]{36,}\b/g },
   { name: "Generic private key block", pattern: /-----BEGIN (RSA |EC |OPENSSH |DSA )?PRIVATE KEY-----/g },
   { name: "Slack Token", pattern: /\bxox[baprs]-[A-Za-z0-9-]{10,}\b/g },
+  { name: "SendGrid API Key", pattern: /\bSG\.[A-Za-z0-9_-]{22}\.[A-Za-z0-9_-]{43}\b/g },
+  { name: "Resend API Key", pattern: /\bre_[A-Za-z0-9]{32}\b/g },
 ];
+
+/**
+ * Supabase anon keys share the exact same JWT header as service-role keys,
+ * but they are public-by-design client identifiers — flagging them is the
+ * classic FP. Decode the payload's `role` claim and only report keys that
+ * actually bypass row-level security. Unparseable JWTs stay flagged (an
+ * unknown token with that header deserves scrutiny).
+ */
+function decodeSupabaseRole(value: string): string | null {
+  const parts = value.split(".");
+  if (parts.length < 2) return null;
+  try {
+    const b64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+    const json = JSON.parse(Buffer.from(b64, "base64").toString("utf-8"));
+    return typeof json?.role === "string" ? json.role : null;
+  } catch {
+    return null;
+  }
+}
+
+function isServiceRoleJwt(value: string): boolean {
+  const role = decodeSupabaseRole(value);
+  return role === null || role === "service_role" || role === "service-role";
+}
 
 const CLIENT_SIDE_HINT_DIRS = ["src", "app", "lib", "public", "web", "client", "components"];
 const SKIP_EXTENSIONS = new Set([".png", ".jpg", ".jpeg", ".gif", ".svg", ".webp", ".ico", ".woff", ".woff2", ".ttf", ".lock", ".min.js"]);
@@ -49,8 +77,7 @@ function isBinaryLikely(ext: string): boolean {
   return SKIP_EXTENSIONS.has(ext);
 }
 
-/** Files larger than this are skipped for content scanning (memory/time guard). */
-const MAX_SCAN_BYTES = 2 * 1024 * 1024;
+// (size guard now lives in lib/content.loadFile — uniform across detectors)
 
 interface SecretHit {
   signatureName: string;
@@ -108,20 +135,9 @@ export const secretsScanner: Detector = async (ctx) => {
     }
     if (isFirebaseClientConfig) return;
 
-    let stat;
-    try {
-      stat = await statFile(join(ctx.rootDir, relPath));
-      if (stat.size > MAX_SCAN_BYTES) return; // too big to be source; skip content scan
-    } catch {
-      return; // unreadable / vanished, skip
-    }
-
-    let content: string;
-    try {
-      content = await readFile(join(ctx.rootDir, relPath), "utf-8");
-    } catch {
-      return; // binary / undecodable, skip
-    }
+    const loaded = await loadFile(ctx, relPath);
+    if (loaded.state === "skipped") return; // too big, vanished, or undecodable
+    const content = loaded.content;
 
     for (const sig of SIGNATURES) {
       sig.pattern.lastIndex = 0;
@@ -134,6 +150,8 @@ export const secretsScanner: Detector = async (ctx) => {
           continue;
         }
         if (isPlaceholderValue(value)) continue;
+        // Supabase anon/authenticated JWTs are public-by-design client keys.
+        if (sig.name.startsWith("Supabase") && !isServiceRoleJwt(value)) continue;
 
         const upToMatch = content.slice(0, match.index);
         const lineNumber = upToMatch.split("\n").length;

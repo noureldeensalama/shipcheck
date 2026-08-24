@@ -35,10 +35,13 @@ function activeCategoriesOrAll(categories?: Category[]): Category[] {
 
 /** Shared detector runner for scan_repo and scan_diff — identical behavior, scope is the only difference. */
 async function runDetectors(rootDir: string, files: string[], activeCategories: Category[]) {
+  // One shared content cache per invocation: every file is read from disk
+  // exactly once no matter how many detectors need it.
+  const contentCache = new Map<string, string | null>();
   const results = await Promise.all(
     activeCategories.map(async (cat) => {
       try {
-        return await DETECTORS[cat]({ rootDir, files });
+        return await DETECTORS[cat]({ rootDir, files, contentCache });
       } catch (err) {
         // A single detector failing (e.g. malformed package.json) should
         // never take down the whole scan.
@@ -71,7 +74,7 @@ async function runDetectors(rootDir: string, files: string[], activeCategories: 
 
 const server = new McpServer({
   name: "shipcheck",
-  version: "0.2.0",
+  version: "0.3.0",
 });
 
 server.registerTool(

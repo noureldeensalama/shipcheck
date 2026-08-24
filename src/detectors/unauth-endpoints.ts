@@ -1,6 +1,6 @@
-import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { Detector, Finding } from "../types.js";
+import { loadFile } from "../lib/content.js";
 
 /**
  * v1 scope was intentionally narrow: Express (Node) and FastAPI (Python) route
@@ -161,12 +161,9 @@ export const unauthEndpoints: Detector = async (ctx) => {
     if (!/\.(js|ts|jsx|tsx|py)$/.test(relPath)) continue;
     if (relPath.includes("node_modules") || relPath.includes(".test.") || relPath.includes("__tests__")) continue;
 
-    let content: string;
-    try {
-      content = await readFile(join(ctx.rootDir, relPath), "utf-8");
-    } catch {
-      continue;
-    }
+    const loaded = await loadFile(ctx, relPath);
+    if (loaded.state === "skipped") continue;
+    const content = loaded.content;
 
     if (/\.(js|ts|jsx|tsx)$/.test(relPath)) {
       scanWithPattern(relPath, content, EXPRESS_ROUTE, "Express", findings);

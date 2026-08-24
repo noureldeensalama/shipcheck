@@ -1,14 +1,22 @@
 # ShipCheck
 
-**A pre-launch risk scanner for AI-built apps.** Works with any MCP-compatible coding agent — Claude
-Code, OpenCode, Cursor, or a BYOK setup — because it's a standard [Model Context Protocol](https://modelcontextprotocol.io)
-server, not a Claude-only integration.
+**The pre-commit and pre-launch risk scanner for AI-built apps.** Works with any MCP-compatible coding
+agent — Claude Code, OpenCode, Cursor, or a BYOK setup — because it's a standard
+[Model Context Protocol](https://modelcontextprotocol.io) server, not a Claude-only integration.
+
+[![CI](https://github.com/n0ureldeen/shipcheck/actions/workflows/ci.yml/badge.svg)](https://github.com/n0ureldeen/shipcheck/actions/workflows/ci.yml)
 
 AI coding agents will happily ship code that leaks API keys, pulls in a GPL-licensed dependency, leaves a
 data endpoint unauthenticated, collects emails with no privacy policy, or handles raw card numbers
 outside a PCI-scoped processor — because "does it run" and "is it safe to ship" are different questions,
 and the agent only answers the first one. ShipCheck answers the second, for five specific, common,
 severe-when-missed risk categories.
+
+**Proven on real repos, not just fixtures.** Dogfooding against two production apps found a live
+Supabase service-role key committed across 13 scripts and three unauthenticated debug endpoints — and
+the same scanner then verified the fixes landed (see [DOGFOOD_RESULTS.md](./DOGFOOD_RESULTS.md) for
+every true/false-positive judgment). Findings cost the agent ~1k tokens on a ~100k-LOC repo: deduplicated,
+severity-ordered, compact by design.
 
 > **This is not a compliance certification tool.** It flags risk patterns via static analysis. It does
 > not determine GDPR/HIPAA/PCI/ADA compliance, and a clean scan is not a legal green light. See

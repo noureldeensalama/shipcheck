@@ -1,6 +1,6 @@
-import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { Detector, Finding } from "../types.js";
+import { loadFile } from "../lib/content.js";
 
 // Raw card-field patterns: field names/labels that suggest the app is
 // building its own card-capture UI instead of using a processor's hosted
@@ -50,12 +50,9 @@ export const paymentHandling: Detector = async (ctx) => {
     if (!/\.(js|ts|jsx|tsx|dart|py|html)$/.test(relPath)) continue;
     if (relPath.includes("node_modules")) continue;
 
-    let content: string;
-    try {
-      content = await readFile(join(ctx.rootDir, relPath), "utf-8");
-    } catch {
-      continue;
-    }
+    const loaded = await loadFile(ctx, relPath);
+    if (loaded.state === "skipped") continue;
+    const content = loaded.content;
 
     const cardFieldMatch = firstCardFieldWithInputContext(content);
     const hasProcessorSdk = PROCESSOR_SDK_HINTS.test(content);
