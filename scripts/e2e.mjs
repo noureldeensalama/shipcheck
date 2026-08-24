@@ -102,10 +102,13 @@ try {
   const diff = await rpc("tools/call", { name: "scan_diff", arguments: { path: "." } });
   check("scan_diff succeeds on a real repo", !diff.result?.isError);
   const diffJson = JSON.parse(diff.result.content[0].text);
-  check("diff response carries scope info", typeof diffJson.summary.scanned_files === "number" && !!diffJson.summary.diff_base);
+  check(
+    "diff scope fields always present",
+    typeof diffJson.summary.scanned_files === "number" && !!diffJson.summary.diff_base,
+  );
   check(
     "empty diff says nothing about repo as a whole",
-    diffJson.findings.length !== 0 || /NOTHING about the repository/.test(diffJson.summary.note),
+    diffJson.summary.scanned_files !== 0 || /NOTHING about the repository/.test(diffJson.summary.note),
   );
 
   // scan_diff on a non-repo must fail with guidance toward scan_repo.

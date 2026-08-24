@@ -178,6 +178,7 @@ server.registerTool(
             text: JSON.stringify({
               summary: {
                 scanned_files: 0,
+                diff_base: base && base.length > 0 ? base : "HEAD (uncommitted work)",
                 reported_changed_by_git: resolution.reportedChanged,
                 total: 0,
                 by_severity: { critical: 0, high: 0, medium: 0 },
