@@ -16,6 +16,8 @@ const PII_COLLECTORS: { name: string; pattern: RegExp }[] = [
   { name: "Amplitude", pattern: /amplitude\.(init|getInstance|logEvent)/ },
   { name: "Auth provider collecting email/name", pattern: /(signUp|createUserWithEmailAndPassword|supabase\.auth\.signUp)/ },
   { name: "Email input field", pattern: /type=["']email["']/ },
+  // Phone numbers are PII in every major regulatory regime.
+  { name: "Phone input field", pattern: /(type=["']tel["']|name=["']tele?phone["'])/i },
 ];
 
 // Filename-level artifact hints: a file whose PATH names a privacy/terms/
@@ -34,6 +36,9 @@ const POLICY_ARTIFACT_CONTENT_HINTS = [
   /(?:href|src|action|url)\s*[:=]\s*["'][^"']*(?:privac|terms|consent)/i,
   // route/path literals: "/privacy", "/terms-of-service", router.push("/consent")
   /["'`(]\/[a-z0-9\-_/]*(?:privac|terms|consent)/i,
+  // Dedicated consent-management integrations ARE consent artifacts
+  // (Cookiebot, OneTrust, Osano, react-cookie-consent, Termly…).
+  /(react-cookie-consent|cookieconsent|cookie[-_]?bot|onetrust|osano|termly|cookielawinfo)/i,
 ];
 
 function looksLikePolicyArtifact(relPath: string): boolean {

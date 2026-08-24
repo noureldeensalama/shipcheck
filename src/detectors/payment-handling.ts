@@ -4,15 +4,18 @@ import { loadFile } from "../lib/content.js";
 
 // Raw card-field patterns: field names/labels that suggest the app is
 // building its own card-capture UI instead of using a processor's hosted
-// fields (Stripe Elements, Paddle overlay, etc.)
-const RAW_CARD_FIELD_HINTS = /(card[_-]?number|cvv|cvc|card[_-]?expiry|cardNumber|cardCvc)/i;
+// fields (Stripe Elements, Paddle overlay, etc.). Includes the standard
+// autofill tokens (cc-number/cc-csc/cc-exp) — the browser-level contract
+// for "this field captures a card element".
+const RAW_CARD_FIELD_HINTS =
+  /(card[_-]?number|cvv|cvc|card[_-]?expiry|cardNumber|cardCvc|cc-number|cc-csc|cc-exp)/i;
 
 // A raw-card word alone isn't enough — the words appear in redaction lists,
 // docstrings, and analytics scrubbers. The hint must sit near an actual
 // input-ish context (HTML input, form field attribute, or framework text
 // field) to suggest a real card-capture UI.
 const INPUT_FIELD_CONTEXT =
-  /(<input|<field|name\s*=\s*["']|id\s*=\s*["']|placeholder\s*=|TextFormField|TextField|formControlName|labelText)/i;
+  /(<input|<field|name\s*=\s*["']|id\s*=\s*["']|placeholder\s*=|TextFormField|TextField|formControlName|labelText|autocomplete\s*=\s*["']cc-)/i;
 
 /** Characters of context around a card-hint match to search for input context. */
 const CONTEXT_WINDOW = 160;

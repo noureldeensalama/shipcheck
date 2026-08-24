@@ -114,6 +114,27 @@ objects (`maxPoints: 0`, no `license:*` tags — verified with direct one-at-a-t
 by scanner concurrency). The fetcher now retries with growing backoff and reports WHY a license is
 undetermined ("pub.dev returned no license tags" vs "unreachable") instead of one vague message.
 
+## v0.4.0 additions, verified against the same repos
+
+- **Python dependency licensing** (requirements*.txt → PyPI metadata): FounderDive's FastAPI backend
+  was previously *unscanned* for licenses — the "0 findings" in earlier rounds meant blind spot, not
+  clean. Now checked: all 28 pinned deps resolve permissive and stay silent (fastapi=MIT, uvicorn=BSD,
+  etc.), which is the correct outcome. Copyleft classification locked by offline classifier test.
+- **Git-history secrets scanning** (`scan_repo` only): finds credentials that were committed and later
+  removed from the working tree — the "deleted but never rotated" failure mode. Verified end-to-end
+  through real MCP on a controlled leak-then-delete repo: the removed key is flagged with commit
+  hashes; values still present in the tree are NOT duplicated as history findings.
+  **First real run paid off immediately**: FounderDive's re-scan surfaced a service-role JWT living
+  ONLY in history (commits `70b6f977`→removed by `2e4f6d33`) — a different value from the live
+  AUDIT_REPORT copy, i.e. deleted from code but very possibly never rotated. History cost: ~34s extra
+  on this repo's last-200-commit patches; acceptable for full audits and absent from `scan_diff`.
+- **New signatures**: OpenRouter, SendGrid, Resend API keys; database URLs with embedded passwords
+  (dotted-host + non-weak-password validation to keep docker-compose localhost defaults quiet).
+- **PII knowledge**: PostHog, Meta Pixel, Hotjar, Clarity, Amplitude collectors; phone inputs;
+  consent-banner libraries (OneTrust/Cookiebot/react-cookie-consent) count as consent artifacts.
+- **Payment**: browser autofill tokens (autocomplete="cc-number|cc-csc|cc-exp") recognized as
+  raw-card-capture signals.
+
 ## Honest limitations observed while dogfooding
 
 - Duplicate secret findings ARE now deduplicated: the same leaked Supabase key that appeared 13 times

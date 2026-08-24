@@ -1,5 +1,5 @@
 import { join } from "node:path";
-import type { Detector, Finding } from "../types.js";
+import type { Detector, DetectorContext, Finding } from "../types.js";
 import { loadFile } from "../lib/content.js";
 
 /**
@@ -24,7 +24,31 @@ const SIGNATURES: { name: string; pattern: RegExp }[] = [
   { name: "Slack Token", pattern: /\bxox[baprs]-[A-Za-z0-9-]{10,}\b/g },
   { name: "SendGrid API Key", pattern: /\bSG\.[A-Za-z0-9_-]{22}\.[A-Za-z0-9_-]{43}\b/g },
   { name: "Resend API Key", pattern: /\bre_[A-Za-z0-9]{32}\b/g },
+  {
+    name: "Database URL with embedded password",
+    // Requires a dotted hostname (excludes localhost/docker service names)
+    // and an 8+ char password segment; extra validation in validateMatch.
+    pattern:
+      /\b(?:postgres(?:ql)?|mysql|mongodb(?:\+srv)?|redis|amqp):\/\/[A-Za-z0-9._%-]+:([^@\s/]{8,})@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/gi,
+  },
 ];
+
+/** Extra per-signature validation beyond the shared value filters. */
+const COMMON_WEAK_PASSWORDS = new Set([
+  "password", "postgres", "root", "admin", "secret", "test", "test123",
+  "changeme", "change-me", "example", "passw0rd", "12345678", "password1",
+]);
+
+function validateMatch(name: string, match: RegExpExecArray): boolean {
+  if (name === "Database URL with embedded password") {
+    const password = match[1];
+    const username = match[0].split("://")[1].split(":")[0];
+    if (password.toLowerCase() === username.toLowerCase()) return false;
+    if (COMMON_WEAK_PASSWORDS.has(password.toLowerCase())) return false;
+    if (/^x{4,}$|^0+$|^\*+$|^<{3,}>?$/.test(password)) return false;
+  }
+  return true;
+}
 
 /**
  * Supabase anon keys share the exact same JWT header as service-role keys,
@@ -152,6 +176,7 @@ export const secretsScanner: Detector = async (ctx) => {
         if (isPlaceholderValue(value)) continue;
         // Supabase anon/authenticated JWTs are public-by-design client keys.
         if (sig.name.startsWith("Supabase") && !isServiceRoleJwt(value)) continue;
+        if (!validateMatch(sig.name, match)) continue;
 
         const upToMatch = content.slice(0, match.index);
         const lineNumber = upToMatch.split("\n").length;
@@ -211,3 +236,65 @@ export const secretsScanner: Detector = async (ctx) => {
 
   return findings;
 };
+
+/** Signatures + value filter, shared with git-history scanning. */
+export const SECRET_SIGNATURES = SIGNATURES;
+
+export function isReportableSecret(value: string): boolean {
+  if (isPlaceholderValue(value)) return false;
+  if (value.startsWith("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9")) {
+    return isServiceRoleJwt(value); // only service_role JWTs matter
+  }
+  return true;
+}
+
+/**
+ * Scans recent git history for secrets that were committed and later removed.
+ * Values still present in the working tree are skipped — the regular scan
+ * already covers those; this catches "deleted but never rotated."
+ */
+export async function scanHistorySecrets(
+  ctx: DetectorContext,
+): Promise<{ findings: Finding[]; scannedCommits: number }> {
+  const { scanGitHistory } = await import("../lib/history.js");
+
+  // Values still in the current tree: cheap re-scan over cached contents so
+  // history findings don't duplicate live ones.
+  const currentValues = new Set<string>();
+  for (const relPath of ctx.files) {
+    const loaded = await loadFile(ctx, relPath);
+    if (loaded.state === "skipped") continue;
+    for (const sig of SECRET_SIGNATURES) {
+      sig.pattern.lastIndex = 0;
+      let m: RegExpExecArray | null;
+      while ((m = sig.pattern.exec(loaded.content)) !== null) {
+        if (m[0].length === 0) {
+          sig.pattern.lastIndex++;
+          continue;
+        }
+        if (!validateMatch(sig.name, m)) continue;
+        currentValues.add(`${sig.name}|${m[0]}`);
+      }
+    }
+  }
+
+  const { findings: historyHits, scannedCommits } = await scanGitHistory(ctx.rootDir, SECRET_SIGNATURES, isReportableSecret);
+
+  const out: Finding[] = [];
+  for (const hit of historyHits) {
+    if (currentValues.has(`${hit.signatureName}|${hit.value}`)) continue; // still live; normal scan covers it
+    out.push({      category: "exposed-secrets",
+      severity: "high",
+      file: hit.files[0] ?? "(git history)",
+      ...(hit.files.length > 1 ? { locations: hit.files } : {}),
+      description:
+        `${hit.signatureName} exists in git HISTORY at commit(s) ${hit.commits.join(", ")}` +
+        ` — removed from current code, but still readable to anyone who clones the repo.`,
+      why_it_matters:
+        "Deleting a credential from the latest commit does not delete it from git history. Anyone with repo access (or anyone at all, once pushed publicly) can check out an old revision and read every secret ever committed.",
+      suggested_fix:
+        "Rotate this credential immediately — assume compromised. Then purge it from history (git filter-repo or BFG) before considering the repo clean.",
+    });
+  }
+  return { findings: out, scannedCommits };
+}

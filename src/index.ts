@@ -74,7 +74,7 @@ async function runDetectors(rootDir: string, files: string[], activeCategories: 
 
 const server = new McpServer({
   name: "shipcheck",
-  version: "0.3.0",
+  version: "0.4.0",
 });
 
 server.registerTool(
@@ -117,7 +117,24 @@ server.registerTool(
       return errorResult(`Path '${rootDir}' does not exist or is not readable. Check for typos and use an absolute path if the repo is outside the current working directory.`);
     }
     const files = await listFiles(rootDir);
-    return runDetectors(rootDir, files, activeCategoriesOrAll(categories));
+    const result = await runDetectors(rootDir, files, activeCategoriesOrAll(categories));
+    let parsed = JSON.parse(result.content[0].text) as ReturnType<typeof buildScanResult>;
+    if (
+      (!categories?.length || categories.includes("exposed-secrets")) &&
+      files.length > 0
+    ) {
+      try {
+        const { scanHistorySecrets } = await import("./detectors/secrets-scanner.js");
+        const history = await scanHistorySecrets({ rootDir, files });
+        if (history.findings.length > 0) {
+          parsed = buildScanResult([...parsed.findings, ...history.findings]);
+        }
+      } catch {
+        // History is additive; a failure here must not fail the whole scan.
+      }
+    }
+
+    return { content: [{ type: "text", text: JSON.stringify(parsed) }] };
   },
 );
 

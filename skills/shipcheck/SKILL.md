@@ -57,9 +57,10 @@ For both:
 
 ## Categories this checks (v1)
 
-1. Exposed secrets (API keys, tokens, committed `.env` files)
+1. Exposed secrets (API keys, tokens, committed `.env` files) — including secrets deleted from current code but still readable in git history
 2. Copyleft-licensed dependencies (GPL/AGPL/LGPL) in what looks like a closed-source app — npm
-   dependencies from installed `node_modules`, and pub.dev packages via `pubspec.lock`
+   dependencies from installed `node_modules`, pub.dev packages via `pubspec.lock`, and Python
+   dependencies from `requirements*.txt` via PyPI metadata
 3. Unauthenticated endpoints that appear to handle user/account data (Express, FastAPI, and Next.js API
    routes in both App Router and Pages Router styles)
 4. PII collection (analytics, signup forms, auth) with no privacy policy or consent artifact found

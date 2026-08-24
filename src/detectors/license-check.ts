@@ -285,9 +285,199 @@ async function checkPubspecLock(lockPath: string, lockContent: string, findings:
   }
 }
 
+/**
+ * Python dependency checking (requirements*.txt). PyPI splits license data
+ * across three metadata fields depending on package vintage — PEP 639
+ * `license_expression` (new), freeform `license` (older), and trove
+ * classifiers (oldest) — so all three are consulted. Like the npm/pub.dev
+ * checks, only copyleft families matter here; permissive ambiguity is
+ * deliberately not surfaced.
+ */
+
+interface PyLicenseLookup {
+  ok: boolean;
+  /** Copyleft classification result, when the package's metadata was readable. */
+  severity: "critical" | "medium" | null;
+  label: string;
+  /**
+   * True when PyPI metadata declared SOME license (permissive ones are
+   * silently fine); false only when every license field was empty —
+   * which is its own honest finding.
+   */
+  declared: boolean;
+  reason?: "unreachable" | "no-license-data";
+}
+
+const pypiCache = new Map<string, PyLicenseLookup>();
+
+/** Test hook — clears the module-level PyPI cache. */
+export function clearPypiCache(): void {
+  pypiCache.clear();
+}
+
+function classifyPythonLicense(haystack: string): { severity: "critical" | "medium" | null; label: string } {
+  const has = (re: RegExp) => re.test(haystack);
+  // Order matters: AGPL/LGPL contain the string "GPL".
+  if (has(/affero general public license|(^|[^a-z])agpl/i)) {
+    return { severity: "critical", label: /v\.?\s*3|agpl-?3/i.test(haystack) ? "AGPL-3.0" : "AGPL" };
+  }
+  if (has(/lesser general public license|(^|[^a-z])lgpl/i)) {
+    return {
+      severity: "medium",
+      label: /v\.?\s*3|lgpl-?3/i.test(haystack) ? "LGPL-3.0" : "LGPL-2.1",
+    };
+  }
+  if (has(/general public license|(^|[^a-z])gpl/i)) {
+    return {
+      severity: "critical",
+      label: /v\.?\s*3|gpl-?3/i.test(haystack) ? "GPL-3.0" : "GPL-2.0",
+    };
+  }
+  if (has(/mozilla public license|(^|[^a-z])mpl/i)) {
+    return { severity: "medium", label: "MPL-2.0" };
+  }
+  if (has(/eclipse public license|(^|[^a-z])epl/i)) {
+    return { severity: "medium", label: "EPL-1.0" };
+  }
+  if (has(/\bcecill-?b\b/i)) {
+    return { severity: "critical", label: "CeCILL-B" };
+  }
+  return { severity: null, label: "" };
+}
+
+async function fetchPyLicense(name: string): Promise<PyLicenseLookup> {
+  const cached = pypiCache.get(name);
+  if (cached) return cached;
+
+  let lookup: PyLicenseLookup = { ok: false, declared: false, severity: null, label: "", reason: "unreachable" };
+  for (const delay of [0, 300, 1500]) {
+    if (delay > 0) await new Promise((r) => setTimeout(r, delay));
+    try {
+      const res = await fetch(`https://pypi.org/pypi/${encodeURIComponent(name)}/json`, {
+        signal: AbortSignal.timeout(10_000),
+      });
+      if (!res.ok) continue;
+      const json = (await res.json()) as {
+        info?: {
+          license_expression?: string | null;
+          license?: string | null;
+          classifiers?: string[];
+        };
+      };
+      const info = json.info ?? {};
+      const classifiers = (info.classifiers ?? []).filter((c) => c.startsWith("License ::")).join(" | ");
+      // Freeform `license` is sometimes an entire LICENSE file pasted in —
+      // cap it so haystack stays a summary, and skip obviously useless values.
+      const freeform =
+        info.license && info.license.length <= 120 && !/^unknown$/i.test(info.license.trim())
+          ? info.license
+          : "";
+      const haystack = [info.license_expression ?? "", freeform, classifiers].filter(Boolean).join(" | ");
+
+      if (!haystack.trim()) {
+        lookup = { ok: true, declared: false, severity: null, label: "", reason: "no-license-data" };
+        break;
+      }
+
+      // A License classifier or expression exists — classify against it.
+      const { severity, label } = classifyPythonLicense(haystack);
+      // Permissive licenses land here with severity null — silent, like npm/pub.dev.
+      lookup = { ok: true, declared: true, severity, label };
+      break;
+    } catch {
+      // retry with backoff
+    }
+  }
+  pypiCache.set(name, lookup);
+  return lookup;
+}
+
+/** Extracts installable PyPI package names from a requirements.txt body. */
+export function parseRequirementsTxt(content: string): string[] {
+  const names = new Set<string>();
+  for (const raw of content.split("\n")) {
+    const line = raw.split("#")[0].trim();
+    if (!line || line.startsWith("-")) continue; // comments, -r, -e, --hash etc.
+    if (/https?:\/\/|^\.|^\/|git\+/.test(line)) continue; // local/VCS deps: nothing to look up
+    const m = line.match(/^([A-Za-z0-9][A-Za-z0-9._-]*)/);
+    if (m && m[1].length > 1) names.add(m[1]);
+  }
+  return [...names].sort();
+}
+
+async function checkPythonDependencies(rootDir: string, files: string[], findings: Finding[]) {
+  const reqFiles = files.filter(
+    (f) => /^requirements.*\.txt$/.test(f.split("/").pop() ?? "") && !f.includes("node_modules"),
+  );
+  if (reqFiles.length === 0) return;
+
+  for (const reqPath of reqFiles) {
+    let content: string;
+    try {
+      content = await readFile(join(rootDir, reqPath), "utf-8");
+    } catch {
+      continue;
+    }
+    const deps = parseRequirementsTxt(content);
+    const lookups = await mapWithConcurrency(deps, LICENSE_FETCH_CONCURRENCY, fetchPyLicense);
+
+    for (let i = 0; i < deps.length; i++) {
+      const dep = deps[i];
+      const lookup = lookups[i];
+      const reportPath = `${reqPath} (${dep})`;
+
+      if (!lookup.ok) {
+        findings.push({
+          category: "copyleft-license",
+          severity: "medium",
+          file: reportPath,
+          description: `License for PyPI dependency '${dep}' could not be determined (pypi.org unreachable).`,
+          why_it_matters:
+            "Undetermined license means you have no confirmed legal basis to use the package commercially.",
+          suggested_fix: `Check '${dep}' on pypi.org or its source repository for license metadata.`,
+        });
+        continue;
+      }
+
+      if (lookup.severity === "critical") {
+        findings.push({
+          category: "copyleft-license",
+          severity: "critical",
+          file: reportPath,
+          description: `PyPI dependency '${dep}' is licensed under ${lookup.label} (strong copyleft) per its PyPI metadata.`,
+          why_it_matters:
+            "Strong copyleft licenses like GPL/AGPL generally require you to release your application's source code under the same license if you distribute or (for AGPL) even network-serve it.",
+          suggested_fix: `Find a permissively-licensed alternative to '${dep}', or consult a lawyer before shipping if it must stay.`,
+        });
+      } else if (lookup.severity === "medium") {
+        findings.push({
+          category: "copyleft-license",
+          severity: "medium",
+          file: reportPath,
+          description: `PyPI dependency '${dep}' is licensed under ${lookup.label} (weak copyleft) per its PyPI metadata.`,
+          why_it_matters:
+            "Weak copyleft is usually fine if you import the package unmodified, but modifying or vendoring it can trigger disclosure requirements.",
+          suggested_fix: `Confirm you're using '${dep}' unmodified and as an external dependency.`,
+        });
+      } else if (!lookup.declared) {
+        findings.push({
+          category: "copyleft-license",
+          severity: "medium",
+          file: reportPath,
+          description: `License for PyPI dependency '${dep}' could not be determined — its metadata declares no license.`,
+          why_it_matters:
+            "No declared license means all rights remain with the author by default; using it commercially without confirmation is a real risk.",
+          suggested_fix: `Verify '${dep}' has a LICENSE file in its source repository, or replace it with a clearly-licensed package.`,
+        });
+      }
+    }
+  }
+}
+
 export const licenseCheck: Detector = async (ctx) => {
   const findings: Finding[] = [];
   await checkNodeDependencies(ctx.rootDir, ctx.files, findings);
   await checkFlutterDependencies(ctx.rootDir, ctx.files, findings);
+  await checkPythonDependencies(ctx.rootDir, ctx.files, findings);
   return findings;
 };
