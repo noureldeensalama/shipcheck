@@ -91,9 +91,9 @@ wrapper is a Claude Code-specific convenience layer, not a hard dependency.
 - **Input:** `path` (string, defaults to cwd), `categories` (optional array to limit which of the 5 run)
 - **Output:** JSON array of findings: `{ category, severity, file, line, description, suggested_fix }`
 
-`scan_diff` *(v1.1, not v1)*
-- Same as above but scoped to a git diff — for inline checking as an agent writes new code, not just a
-  one-shot audit.
+`scan_diff` *(shipped in v0.2.0)*
+- Same as above but scoped to uncommitted changes (or a branch via `base`) — for inline checking as an
+  agent writes new code, not just a one-shot audit.
 
 ## 8. Success Criteria for V1
 

@@ -12,18 +12,31 @@ Trigger this skill when:
   about compliance/legal risk for an app they're building.
 - You (the agent) are about to help the user deploy, publish, or submit an app to an app store, and no
   scan has been run yet in this session.
+- You (the agent) are about to commit, push, or hand a batch of changes back to the user — run
+  `scan_diff` first and mention anything it flags before proceeding.
 - The user explicitly asks to run ShipCheck or scan for security/compliance issues.
 
-Do NOT trigger this for routine code edits unrelated to shipping — it's a pre-launch check, not a
-lint-on-every-save tool in v1.
+Do NOT trigger this for trivial, self-contained edits with no shipping surface (a typo fix in docs,
+renaming a variable) — but when in doubt, `scan_diff` is cheap; running it is never wrong.
 
 ## How to use it
 
-1. Call the `scan_repo` tool with the project root path (default to the current working directory if the
-   user doesn't specify one).
-2. Read the returned JSON: `summary` (counts by severity) and `findings` (array of individual issues).
-   The response is already deduplicated and size-capped; if a finding has a `locations` array, it is ONE
-   credential/pattern found in several places — present it as one issue with all locations, not N issues.
+Two tools are available — pick by scope:
+
+- **`scan_diff`** (default for the daily loop): scans only uncommitted changes (staged + unstaged +
+  new files) vs HEAD, or a whole branch via `base`. Use it whenever the agent is about to commit,
+  push, or hand work back to the user mid-build — it's fast and only reads what changed. An empty
+  diff result says NOTHING about the repo as a whole; don't present it as a clean bill.
+- **`scan_repo`**: full-repository audit before launch/app-store submission or on a brand-new
+  codebase.
+
+For both:
+1. Call the tool with the project root path (default to the current working directory if the user
+   doesn't specify one).
+2. Read the returned JSON: `summary` (counts, `scanned_files`, and for diffs the base ref) and
+   `findings` (array of individual issues). The response is already deduplicated and size-capped;
+   if a finding has a `locations` array, it is ONE credential/pattern found in several places —
+   present it as one issue with all locations, not N issues.
 3. Present findings to the user grouped by severity, critical first. For each finding, give:
    - What was found and where (file + line)
    - Why it matters, in plain language — assume the user may not know what PCI, RLS, or copyleft mean

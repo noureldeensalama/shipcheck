@@ -54,14 +54,24 @@ Then add to your agent's `.mcp.json`:
 }
 ```
 
-## Usage
+## Two tools, two moments
 
-Once installed, ask your agent something like *"run shipcheck before I deploy this"* or *"scan this repo
-for launch risks."* The bundled skill (`skills/shipcheck/SKILL.md`) teaches the agent when to invoke it
-and how to present results responsibly.
+| Tool | When | What it scans |
+|---|---|---|
+| `scan_diff` | **Before every commit** — the daily loop while your agent builds | Only uncommitted changes (+ new files), or a whole branch via `base`. Fast and cheap — catches the leak the moment it's written, not at launch. |
+| `scan_repo` | **Before launch** — app-store submission, going live, taking investment | The whole repository. Thorough. |
 
-You can also call the tool directly — it exposes one MCP tool, `scan_repo(path, categories?)`, returning
-structured JSON findings.
+The bundled skill (`skills/shipcheck/SKILL.md`) teaches the agent when to use which and how to present
+results responsibly. Typical session:
+
+> **You:** commit this and let's test the signup flow
+> **Agent:** ran shipcheck scan_diff first — found a Supabase service-role key hardcoded in the new
+> webhook handler (bypasses row-level security). Rotating it and moving to env var before committing.
+
+You can also invoke a scan headlessly without an interactive agent:
+```bash
+claude --plugin-dir /path/to/shipcheck -p "Run shipcheck scan_repo on . and summarize findings"
+```
 
 ## Testing it yourself
 

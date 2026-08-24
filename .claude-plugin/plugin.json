@@ -2,7 +2,7 @@
   "name": "shipcheck",
   "displayName": "ShipCheck",
   "description": "Pre-launch risk scanner for AI-built apps. Flags exposed secrets, copyleft-licensed dependencies, unauthenticated data endpoints, missing privacy/consent artifacts, and client-side payment handling before you ship.",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "author": {
     "name": "Nour Salama"
   },
