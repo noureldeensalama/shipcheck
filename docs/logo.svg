@@ -1,0 +1,25 @@
+<svg width="640" height="160" viewBox="0 0 640 160" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0B1220"/>
+      <stop offset="100%" stop-color="#101A2E"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#38BDF8"/>
+      <stop offset="100%" stop-color="#34D399"/>
+    </linearGradient>
+  </defs>
+  <rect width="640" height="160" rx="20" fill="url(#bg)"/>
+  <!-- shield-ship mark -->
+  <g transform="translate(36,28)">
+    <path d="M44 4 L80 18 V52 C80 76 62 94 44 100 C26 94 8 76 8 52 V18 Z"
+          fill="none" stroke="url(#accent)" stroke-width="5" stroke-linejoin="round"/>
+    <path d="M44 30 L60 37 V54 C60 65 52 73 44 76 C36 73 28 65 28 54 V37 Z"
+          fill="url(#accent)" opacity="0.9"/>
+    <path d="M44 40 L44 66 M36 50 H52" stroke="#0B1220" stroke-width="4" stroke-linecap="round"/>
+  </g>
+  <text x="150" y="72" font-family="-apple-system,Segoe UI,Helvetica,Arial,sans-serif"
+        font-size="44" font-weight="800" fill="#F8FAFC">ShipCheck</text>
+  <text x="152" y="106" font-family="-apple-system,Segoe UI,Helvetica,Arial,sans-serif"
+        font-size="19" fill="#94A3B8">Find what your AI-built app leaks — before you ship.</text>
+</svg>

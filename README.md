@@ -1,42 +1,56 @@
-# ShipCheck
+<div align="center">
 
-**The pre-commit and pre-launch risk scanner for AI-built apps.** Works with any MCP-compatible coding
-agent — Claude Code, OpenCode, Cursor, or a BYOK setup — because it's a standard
-[Model Context Protocol](https://modelcontextprotocol.io) server, not a Claude-only integration.
+<img src="docs/logo.svg" alt="ShipCheck" width="640"/>
+
+**Find what your AI-built app leaks — before you ship.**
+
+Works with Claude Code, OpenCode, Cursor, or any MCP-compatible agent — it's a standard
+[Model Context Protocol](https://modelcontextprotocol.io) server, not a Claude-only tool.
 
 [![CI](https://github.com/n0ureldeen/shipcheck/actions/workflows/ci.yml/badge.svg)](https://github.com/n0ureldeen/shipcheck/actions/workflows/ci.yml)
+[![npm](https://img.shields.io/npm/v/shipcheck-mcp)](https://www.npmjs.com/package/shipcheck-mcp)
+[![license](https://img.shields.io/badge/license-MIT-green)](./LICENSE)
 
-AI coding agents will happily ship code that leaks API keys, pulls in a GPL-licensed dependency, leaves a
-data endpoint unauthenticated, collects emails with no privacy policy, or handles raw card numbers
-outside a PCI-scoped processor — because "does it run" and "is it safe to ship" are different questions,
-and the agent only answers the first one. ShipCheck answers the second, for five specific, common,
-severe-when-missed risk categories.
+</div>
 
-**Proven on real repos, not just fixtures.** Dogfooding against two production apps found a live
-Supabase service-role key committed across 13 scripts and three unauthenticated debug endpoints — and
-the same scanner then verified the fixes landed (see [DOGFOOD_RESULTS.md](./DOGFOOD_RESULTS.md) for
-every true/false-positive judgment). Findings cost the agent ~1k tokens on a ~100k-LOC repo: deduplicated,
-severity-ordered, compact by design.
+---
 
-> **This is not a compliance certification tool.** It flags risk patterns via static analysis. It does
-> not determine GDPR/HIPAA/PCI/ADA compliance, and a clean scan is not a legal green light. See
-> [PRD.md](./PRD.md) section 2 for full non-goals.
+AI coding agents happily ship apps that leak API keys, pull in GPL-licensed packages, leave admin
+routes open to the internet, collect emails with no privacy policy, or touch raw card numbers —
+because "does it run" and "is this okay to ship" are different questions, and your agent only
+answers the first one.
 
-## What it checks (v1)
+ShipCheck answers the second one. It runs five fast, deterministic checks over your project and
+explains every finding in plain words — what's wrong, why it matters for *you*, and exactly how to
+fix it. No security background needed.
 
-| Category | What it catches |
+> **Honest by design:** ShipCheck flags risky *patterns*. It is not a legal review and not a
+> guarantee. A clean scan means nothing matched these specific checks — nothing more.
+> See [PRD.md](./PRD.md) §2 for the full non-goals.
+
+## Two tools, two moments
+
+| Tool | When | What it scans |
+|---|---|---|
+| **`scan_diff`** | **Before every commit** — while your agent builds | Just the uncommitted changes (or a whole branch via `base`). Runs in ~0.1s even on 100k-file repos. |
+| **`scan_repo`** | **Before launch** — app stores, going live, investors | The whole repository, including git history for deleted-but-never-rotated secrets. |
+
+The bundled skill teaches your agent the habit: `scan_diff` before commits, `scan_repo` before launch.
+
+## Works with your stack
+
+| Check | Coverage |
 |---|---|
-| Exposed secrets | API keys/tokens hardcoded or committed in `.env` files |
-| Copyleft license contamination | GPL/AGPL/LGPL-class deps across npm, PyPI, pub.dev, crates.io, rubygems, Composer |
-| Unauthenticated data endpoints | Express/FastAPI/Flask/Next.js/Go-router/Laravel/Spring routes touching user, account, or debug data with no visible auth guard |
-| PII without consent artifact | Analytics/signup/auth PII collection with no privacy policy found |
-| Client-side payment handling | Raw card fields with no PCI-scoped processor SDK present |
+| 🔑 Exposed secrets | Any language — 15+ key formats (Stripe, OpenAI, Anthropic, OpenRouter, Supabase service-role, AWS, GitHub, Google, Slack, SendGrid, Resend, private keys, DB URLs), committed `.env` files, plus **deleted-but-never-rotated keys found in git history** |
+| ⚖️ Copyleft licenses | npm · PyPI · pub.dev · crates.io · RubyGems · Composer |
+| 🚪 Unlocked routes | Express · FastAPI · Flask · Next.js (App + Pages Router) · gin/echo/fiber-style Go · Laravel · Spring Boot |
+| 🕵️ PII without a privacy policy | Google Analytics, PostHog, Meta Pixel, Hotjar, Clarity, Amplitude, Mixpanel, Segment, Firebase, signup/auth forms, phone inputs |
+| 💳 Card data handling | Raw card/CVV fields in JS/TS/Dart/Python/HTML vs. processor SDKs (Stripe Elements & friends) |
 
-Every finding includes file/line, a plain-language explanation, and a suggested fix — never a pass/fail
-verdict.
+Every summary tells you which stacks it detected (`project_types`) and warns you honestly when a
+detected stack isn't fully covered (`coverage_caveat`) instead of implying everything is fine.
 
-Every finding includes file/line, a plain-language explanation, and a suggested fix — never a pass/fail
-verdict. Here's what one actually looks like:
+## What a finding looks like
 
 > **[critical] lib/firebase_options.dart** — Possible Google API Key found in code that runs on
 > people's devices.
@@ -47,71 +61,77 @@ verdict. Here's what one actually looks like:
 > **The fix:** Move the key into a separate secrets file that never becomes part of the project, load
 > it at startup, then get a new key from the provider's dashboard — treat this one as stolen.
 
-## Install
+## 30-second start
 
-**As a Claude Code plugin:**
-```
+```bash
+# In Claude Code:
 /plugin marketplace add n0ureldeen/shipcheck
 /plugin install shipcheck
+
+# Then just talk to your agent:
 ```
+> *"run shipcheck before I commit"* · *"is this ready to launch?"* · *"scan this repo"*
 
-**As a standalone MCP server (any MCP-compatible agent):**
-```bash
-git clone https://github.com/n0ureldeen/shipcheck.git
-cd shipcheck
-npm install
-npm run build
-```
-Then add to your agent's `.mcp.json`:
-```json
-{
-  "mcpServers": {
-    "shipcheck": {
-      "command": "node",
-      "args": ["/absolute/path/to/shipcheck/dist/index.js"]
-    }
-  }
-}
-```
-
-## Two tools, two moments
-
-| Tool | When | What it scans |
-|---|---|---|
-| `scan_diff` | **Before every commit** — the daily loop while your agent builds | Only uncommitted changes (+ new files), or a whole branch via `base`. Fast and cheap — catches the leak the moment it's written, not at launch. |
-| `scan_repo` | **Before launch** — app-store submission, going live, taking investment | The whole repository. Thorough. |
-
-The bundled skill (`skills/shipcheck/SKILL.md`) teaches the agent when to use which and how to present
-results responsibly. Typical session:
-
-> **You:** commit this and let's test the signup flow
-> **Agent:** ran shipcheck scan_diff first — found a Supabase service-role key hardcoded in the new
-> webhook handler (bypasses row-level security). Rotating it and moving to env var before committing.
-
-You can also invoke a scan headlessly without an interactive agent:
+Headless / CI:
 ```bash
 claude --plugin-dir /path/to/shipcheck -p "Run shipcheck scan_repo on . and summarize findings"
 ```
 
-## Testing it yourself
+### Standalone MCP server (Cursor, OpenCode, anything else)
 
-`test-fixtures/vulnerable-app/` is a deliberately broken sample app that trips all five detectors. Point
-the scanner at it to see real output:
 ```bash
-npm run dev -- # then invoke scan_repo with path=test-fixtures/vulnerable-app from your agent
+git clone https://github.com/n0ureldeen/shipcheck.git
+cd shipcheck && npm install && npm run build
 ```
 
-## Architecture
+```json
+{
+  "mcpServers": {
+    "shipcheck": { "command": "node", "args": ["/absolute/path/to/shipcheck/dist/index.js"] }
+  }
+}
+```
 
-See [PRD.md](./PRD.md) for the full product requirements doc, including the core design principle
-(deterministic static detection, LLM only for explaining findings — never LLM-only risk judgment),
-milestones, and honest caveats about detector limitations.
+Or once published: `npx shipcheck-mcp`
+
+## Built to be trusted
+
+- **Deterministic**: regex + dependency metadata only. An LLM explains findings downstream; it never
+  decides whether a finding exists ([PRD.md](./PRD.md) §4).
+- **Quiet by design**: identical keys deduplicate into one finding with all locations; output is
+  severity-ordered, compact (~1k tokens on a 100k-LOC repo), capped at 100 findings with an explicit
+  truncation flag; vendored trees (`node_modules`, `.venv`, `build`…) are never scanned; placeholder
+  values (`mock…`, CI dummies) and public-by-design configs (`google-services.json`,
+  `firebase_options.dart`) don't cry wolf.
+- **Proven on real code**: dogfooded on five production repos — it caught a live Supabase
+  service-role key across 13 files and three unauthenticated debug endpoints, then verified the fixes
+  landed and flagged a second key that survived only in git history.
+  Full true/false-positive log: [DOGFOOD_RESULTS.md](./DOGFOOD_RESULTS.md).
+
+## Compatibility
+
+| | |
+|---|---|
+| Node.js | 20+ (CI matrix: 20 & 22) |
+| OS | macOS · Linux · Windows (BOM-tolerant file parsing, path-safe) |
+| Agents | Anything that speaks MCP over stdio |
+| Project types | Secrets/licenses cover every stack; route coverage per table above |
+
+## Testing it yourself
+
+```bash
+npm test             # 53 unit tests
+npm run e2e          # 21 real-MCP-protocol checks
+npm run verify-fixture   # acceptance gate over deliberately-vulnerable fixtures
+npm run dogfood -- /path/to/any/repo   # scan any repo from the CLI
+```
 
 ## Contributing
 
-See [CONTRIBUTING.md](./CONTRIBUTING.md). New detector categories, framework coverage for the
-unauthenticated-endpoint check (currently Express, FastAPI, and Next.js), and false-positive reports
-are all welcome. Real-repo dogfooding results live in [DOGFOOD_RESULTS.md](./DOGFOOD_RESULTS.md).
+Issues and PRs welcome — see [CONTRIBUTING.md](./CONTRIBUTING.md). New detector categories need both
+a fires-on-risk fixture and a doesn't-over-fire regression test; false-positive reports with real
+code samples are especially valuable. Real-repo results live in
+[DOGFOOD_RESULTS.md](./DOGFOOD_RESULTS.md).
 
 ## License
 

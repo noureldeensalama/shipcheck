@@ -7,13 +7,18 @@ on:
 
 jobs:
   build-and-test:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        node-version: [20, 22]
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: ${{ matrix.node-version }}
           cache: npm
 
       - name: Install dependencies
@@ -24,6 +29,9 @@ jobs:
 
       - name: Test
         run: npm test
+
+      - name: Fixture acceptance gate
+        run: npm run verify-fixture
 
       - name: E2E (real MCP protocol)
         run: npm run e2e
