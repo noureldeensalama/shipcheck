@@ -27,7 +27,7 @@ severity-ordered, compact by design.
 | Category | What it catches |
 |---|---|
 | Exposed secrets | API keys/tokens hardcoded or committed in `.env` files |
-| Copyleft license contamination | GPL/AGPL/LGPL dependencies in a closed-source app |
+| Copyleft license contamination | GPL/AGPL/LGPL-class deps across npm, PyPI, pub.dev, crates.io, rubygems, Composer |
 | Unauthenticated data endpoints | Express/FastAPI/Flask/Next.js/Go-router/Laravel/Spring routes touching user, account, or debug data with no visible auth guard |
 | PII without consent artifact | Analytics/signup/auth PII collection with no privacy policy found |
 | Client-side payment handling | Raw card fields with no PCI-scoped processor SDK present |

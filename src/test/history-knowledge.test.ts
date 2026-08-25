@@ -120,6 +120,41 @@ test("PyPI classifier mapping flags GPL deps and stays silent on permissive ones
   }
 });
 
+test("BOM-prefixed manifests still parse (Windows-authored repos)", async (t) => {
+  // Files saved by Windows tools often carry a UTF-8 BOM; JSON.parse throws
+  // on it, which silently disabled composer.lock license checking.
+  clearPypiCache();
+  const originalFetch = globalThis.fetch;
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+    clearPypiCache();
+  });
+  globalThis.fetch = (async () => {
+    throw new Error("offline");
+  }) as typeof fetch;
+
+  const { mkdtemp, writeFile, rm } = await import("node:fs/promises");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const dir = await mkdtemp(join(tmpdir(), "shipcheck-bom-"));
+  try {
+    const bom = "\uFEFF";
+    const lock = {
+      packages: [{ name: "acme/gpl-bundled", license: ["GPL-3.0-only"] }],
+      "packages-dev": [],
+    };
+    await writeFile(join(dir, "composer.lock"), bom + JSON.stringify(lock));
+    const files = await fg(["**/*"], { cwd: dir, dot: true, onlyFiles: true });
+
+    const findings = await licenseCheck({ rootDir: dir, files });
+    assert.equal(findings.length, 1, `BOM broke parsing; got ${JSON.stringify(findings)}`);
+    assert.equal(findings[0].severity, "critical");
+    assert.match(findings[0].description, /gpl-bundled/);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
 test("database URL signature fires on real-shaped DSN, skips localhost and weak passwords", () => {
   const sig = SECRET_SIGNATURES.find((s) => s.name === "Database URL with embedded password")!;
   const test = (s: string) => {

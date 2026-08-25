@@ -14,6 +14,17 @@ export type LoadedFile =
   | { state: "skipped" };
 
 /**
+ * Reads a UTF-8 file with a UTF-8 BOM stripped if present. Files authored on
+ * Windows commonly carry the BOM; JSON.parse throws on it, which would
+ * silently disable package.json / composer.lock license checking for those
+ * repos. All direct manifest reads go through this helper.
+ */
+export async function readTextClean(absolutePath: string): Promise<string> {
+  const raw = await readFile(absolutePath, "utf-8");
+  return raw.charCodeAt(0) === 0xfeff ? raw.slice(1) : raw;
+}
+
+/**
  * Reads a file once per scan and shares it across all detectors.
  *
  * Before this cache, a full scan read every text file up to five times (once
@@ -34,7 +45,7 @@ export async function loadFile(ctx: DetectorContext, relPath: string): Promise<L
     if (st.size > MAX_CONTENT_BYTES) {
       loaded = { state: "skipped" };
     } else {
-      loaded = { state: "ok", content: await readFile(join(ctx.rootDir, relPath), "utf-8") };
+      loaded = { state: "ok", content: await readTextClean(join(ctx.rootDir, relPath)) };
     }
   } catch {
     loaded = { state: "skipped" }; // vanished, unreadable, or undecodable

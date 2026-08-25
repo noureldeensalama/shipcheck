@@ -33,7 +33,8 @@ Two tools are available — pick by scope:
 For both:
 1. Call the tool with the project root path (default to the current working directory if the user
    doesn't specify one).
-2. Read the returned JSON: `summary` (counts, `scanned_files`, and for diffs the base ref) and
+2. Read the returned JSON: `summary` (counts, `scanned_files`, inferred `project_types`, a
+   `coverage_caveat` when a detected stack lacks endpoint coverage, and for diffs the base ref) and
    `findings` (array of individual issues). The response is already deduplicated and size-capped;
    if a finding has a `locations` array, it is ONE credential/pattern found in several places —
    present it as one issue with all locations, not N issues.

@@ -82,6 +82,33 @@ try {
         repoJson.summary.by_severity.medium ===
         repoJson.summary.total,
   );
+  check(
+    "project_types inferred in summary",
+    Array.isArray(repoJson.summary.project_types) && repoJson.summary.project_types.includes("Node.js"),
+    JSON.stringify(repoJson.summary.project_types),
+  );
+
+  // Multi-stack endpoint detection through the wire (Go/Laravel/Spring/Flask).
+  const stackScan = await rpc("tools/call", {
+    name: "scan_repo",
+    arguments: { path: "./test-fixtures/multi-stack" },
+  });
+  const stackJson = JSON.parse(stackScan.result.content[0].text);
+  const goFinding = stackJson.findings.find((f) => f.description.startsWith("Go route"));
+  const springFinding = stackJson.findings.find((f) => f.description.startsWith("Spring route"));
+  const laravelFinding = stackJson.findings.find((f) => f.description.startsWith("Laravel route"));
+  const flaskFinding = stackJson.findings.find((f) => f.description.startsWith("Flask route"));
+  check("Go router finding via wire", !!goFinding);
+  check("Spring finding via wire", !!springFinding);
+  check("Laravel finding via wire", !!laravelFinding);
+  check("Flask finding via wire", !!flaskFinding);
+  check(
+    "guarded neighbors not flagged (segment scoping)",
+    !stackJson.findings.some(
+      (f) => /admin\/stats|billing\/history|user\/settings/.test(f.description) || /billing\/invoices|admin-source/.test(f.description),
+    ),
+    JSON.stringify(stackJson.findings.map((f) => f.description)),
+  );
 
   // Category filter narrows results.
   const secretsOnly = await rpc("tools/call", {

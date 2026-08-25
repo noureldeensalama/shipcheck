@@ -1,7 +1,7 @@
-import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { parse as parseYaml } from "yaml";
 import correct from "spdx-correct";
+import { readTextClean } from "../lib/content.js";
 import type { Detector, Finding } from "../types.js";
 
 /**
@@ -34,7 +34,7 @@ async function checkNodeDependencies(rootDir: string, files: string[], findings:
     const pkgDir = pkgPath.slice(0, pkgPath.length - "package.json".length); // "" for root, "frontend/" etc.
     let deps: string[];
     try {
-      const pkgRaw = await readFile(join(rootDir, pkgPath), "utf-8");
+      const pkgRaw = await readTextClean(join(rootDir, pkgPath));
       const pkg = JSON.parse(pkgRaw);
       deps = Object.keys({ ...pkg.dependencies, ...pkg.optionalDependencies });
     } catch {
@@ -51,7 +51,7 @@ async function checkNodeDependency(rootDir: string, pkgDir: string, dep: string,
   // Where the dependency's manifest lives, for honest reporting regardless of nesting.
   const reportPath = `${pkgDir}node_modules/${dep}/package.json`;
   try {
-    const depPkgRaw = await readFile(join(rootDir, pkgDir, "node_modules", dep, "package.json"), "utf-8");
+    const depPkgRaw = await readTextClean(join(rootDir, pkgDir, "node_modules", dep, "package.json"));
     const depPkg = JSON.parse(depPkgRaw);
     const rawLicense: string | undefined =
       typeof depPkg.license === "string" ? depPkg.license : depPkg.license?.type ?? depPkg.licenses?.[0]?.type;
@@ -222,7 +222,7 @@ async function checkFlutterDependencies(rootDir: string, files: string[], findin
   for (const lockPath of lockFiles) {
     let lockContent: string;
     try {
-      lockContent = await readFile(join(rootDir, lockPath), "utf-8");
+      lockContent = await readTextClean(join(rootDir, lockPath));
     } catch {
       continue;
     }
@@ -414,7 +414,7 @@ async function checkPythonDependencies(rootDir: string, files: string[], finding
   for (const reqPath of reqFiles) {
     let content: string;
     try {
-      content = await readFile(join(rootDir, reqPath), "utf-8");
+      content = await readTextClean(join(rootDir, reqPath));
     } catch {
       continue;
     }
@@ -576,7 +576,7 @@ async function checkCargoDependencies(rootDir: string, files: string[], findings
   const rootManifest = manifests.find((m) => m === "Cargo.toml");
   if (rootManifest) {
     try {
-      ownCrates = new Set(parseCargoWorkspaceMembers(await readFile(join(rootDir, rootManifest), "utf-8")));
+      ownCrates = new Set(parseCargoWorkspaceMembers(await readTextClean(join(rootDir, rootManifest))));
     } catch {
       // no readable root manifest; per-manifest filtering still applies
     }
@@ -586,7 +586,7 @@ async function checkCargoDependencies(rootDir: string, files: string[], findings
     if (ownCrates.has(manifestPath.split("/").slice(0, -1).pop() ?? "")) continue; // member crate's own manifest
     let content: string;
     try {
-      content = await readFile(join(rootDir, manifestPath), "utf-8");
+      content = await readTextClean(join(rootDir, manifestPath));
     } catch {
       continue;
     }
@@ -687,7 +687,7 @@ async function checkComposerDependencies(rootDir: string, files: string[], findi
   for (const lockPath of locks) {
     let content: string;
     try {
-      content = await readFile(join(rootDir, lockPath), "utf-8");
+      content = await readTextClean(join(rootDir, lockPath));
     } catch {
       continue;
     }
@@ -785,7 +785,7 @@ async function checkRubyDependencies(rootDir: string, files: string[], findings:
   for (const lockPath of lockfiles) {
     let content: string;
     try {
-      content = await readFile(join(rootDir, lockPath), "utf-8");
+      content = await readTextClean(join(rootDir, lockPath));
     } catch {
       continue;
     }
