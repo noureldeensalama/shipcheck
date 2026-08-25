@@ -6,6 +6,7 @@ import { stat } from "node:fs/promises";
 import { listFiles } from "./lib/list-files.js";
 import { buildScanResult } from "./lib/scan-response.js";
 import { getChangedFiles } from "./lib/git-diff.js";
+import { detectProjectTypes, coverageCaveat } from "./lib/project-types.js";
 
 import { secretsScanner } from "./detectors/secrets-scanner.js";
 import { licenseCheck } from "./detectors/license-check.js";
@@ -60,6 +61,14 @@ async function runDetectors(rootDir: string, files: string[], activeCategories: 
   );
 
   const result = buildScanResult(results.flat());
+  const projectTypes = detectProjectTypes(files);
+  const caveat = coverageCaveat(projectTypes);
+  if (projectTypes.length > 0) {
+    result.summary.project_types = projectTypes;
+  }
+  if (caveat) {
+    result.summary.coverage_caveat = caveat;
+  }
   return {
     content: [
       {
@@ -74,7 +83,7 @@ async function runDetectors(rootDir: string, files: string[], activeCategories: 
 
 const server = new McpServer({
   name: "shipcheck",
-  version: "0.4.0",
+  version: "0.5.0",
 });
 
 server.registerTool(

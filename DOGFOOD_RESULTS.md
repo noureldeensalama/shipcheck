@@ -135,6 +135,22 @@ undetermined ("pub.dev returned no license tags" vs "unreachable") instead of on
 - **Payment**: browser autofill tokens (autocomplete="cc-number|cc-csc|cc-exp") recognized as
   raw-card-capture signals.
 
+## v0.5.0 — any-project-type expansion, verified on five real repos
+
+Expanded from two dogfood repos to five by scanning the user's other production projects:
+
+| Repo | Stack | Result |
+|---|---|---|
+| FounderDive AI | Python/FastAPI + Next.js | 3 findings, all TP (see post-fix section above) |
+| Fitloom | Flutter | 2 accurate license findings |
+| **NEXR** | Rust workspace (10 crates) | First run: 18 FPs — every workspace-internal crate (`nexr-config.workspace = true` inheritance) queried against crates.io. Fixed: workspace-member parsing excludes the repo's own crates. Final: **0 findings** (third-party deps are MIT/Apache). |
+| **Lammma** | Flutter + nested Next.js admin | First run: Firebase client keys in generated `firebase_options.dart` flagged critical (same public-by-design class as google-services.json — now excepted), plus a PEM-marker FP in an edge function that merely *processes* env-loaded keys via `.replace(/-----BEGIN…/)`. Fixed: full-block-only PEM signature. Final: **0 secrets findings**, accurate pub.dev license results. |
+| ShipCheck itself | TypeScript MCP server | Self-scanned repeatedly during development; findings only ever came from test fixtures quoting vulnerable code. |
+
+New coverage shipped with this round: Cargo.toml→crates.io and Gemfile.lock→rubygems.org license
+checking, composer.lock (offline), Flask / Go-router / Laravel / Spring Boot endpoint detection with
+segment-scoped guard windows, project-type inference with honest coverage caveats in every summary.
+
 ## Honest limitations observed while dogfooding
 
 - Duplicate secret findings ARE now deduplicated: the same leaked Supabase key that appeared 13 times

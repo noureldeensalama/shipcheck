@@ -61,8 +61,8 @@ For both:
 2. Copyleft-licensed dependencies (GPL/AGPL/LGPL) in what looks like a closed-source app — npm
    dependencies from installed `node_modules`, pub.dev packages via `pubspec.lock`, and Python
    dependencies from `requirements*.txt` via PyPI metadata
-3. Unauthenticated endpoints that appear to handle user/account data (Express, FastAPI, and Next.js API
-   routes in both App Router and Pages Router styles)
+3. Unauthenticated endpoints handling user/account data (Express, FastAPI, Flask, Next.js App
+   Router + Pages Router, gin/echo/fiber-style Go routers, Laravel, Spring Boot)
 4. PII collection (analytics, signup forms, auth) with no privacy policy or consent artifact found
 5. Client-side/raw payment card field handling instead of a PCI-scoped processor SDK
 

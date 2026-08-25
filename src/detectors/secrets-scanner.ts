@@ -20,7 +20,14 @@ const SIGNATURES: { name: string; pattern: RegExp }[] = [
   { name: "Google API Key", pattern: /\bAIza[0-9A-Za-z\-_]{35}\b/g },
   { name: "Firebase/Google OAuth Client Secret", pattern: /GOCSPX-[A-Za-z0-9\-_]{20,}/g },
   { name: "GitHub Personal Access Token", pattern: /\bgh[pousr]_[A-Za-z0-9]{36,}\b/g },
-  { name: "Generic private key block", pattern: /-----BEGIN (RSA |EC |OPENSSH |DSA )?PRIVATE KEY-----/g },
+  {
+    name: "Generic private key block",
+    // Full PEM block only: header + real base64 payload + closing marker.
+    // Bare "-----BEGIN PRIVATE KEY-----" strings appear in code that
+    // PROCESSES keys (e.g. .replace() calls on a key loaded from env) —
+    // flagging those was a dogfooded false positive.
+    pattern: /-----BEGIN (?:RSA |EC |OPENSSH |DSA )?PRIVATE KEY-----[A-Za-z0-9+/=\s]{100,}?-----END (?:RSA |EC |OPENSSH |DSA )?PRIVATE KEY-----/g,
+  },
   { name: "Slack Token", pattern: /\bxox[baprs]-[A-Za-z0-9-]{10,}\b/g },
   { name: "SendGrid API Key", pattern: /\bSG\.[A-Za-z0-9_-]{22}\.[A-Za-z0-9_-]{43}\b/g },
   { name: "Resend API Key", pattern: /\bre_[A-Za-z0-9]{32}\b/g },
@@ -82,7 +89,11 @@ const SKIP_EXTENSIONS = new Set([".png", ".jpg", ".jpeg", ".gif", ".svg", ".webp
 // server-side (via App Check / API restrictions), not secret credentials.
 // Flagging them every scan drowns real findings. Other signatures (private key
 // blocks etc.) cannot legitimately occur in these files either.
-const FIREBASE_CLIENT_CONFIG_FILES = new Set(["google-services.json", "GoogleService-Info.plist"]);
+const FIREBASE_CLIENT_CONFIG_FILES = new Set([
+  "google-services.json",
+  "GoogleService-Info.plist",
+  "firebase_options.dart", // Flutter's generated config — same public-by-design contract
+]);
 
 /**
  * Values that are obviously placeholders rather than live credentials:

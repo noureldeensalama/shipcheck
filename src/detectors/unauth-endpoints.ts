@@ -17,7 +17,30 @@ import { loadFile } from "../lib/content.js";
  */
 
 const EXPRESS_ROUTE = /\b(app|router)\.(get|post|put|patch|delete)\s*\(\s*['"`]([^'"`]+)['"`]/g;
-const FASTAPI_ROUTE = /@(app|router)\.(get|post|put|patch|delete)\s*\(\s*['"`]([^'"`]+)['"`]/g;
+// Flask reuses FastAPI's decorator shape (`@app.route(...)` / `@app.get(...)`).
+const FASTAPI_ROUTE = /@(app|router|api|bp|blueprint)\.(get|post|put|patch|delete|route)\s*\(\s*['"`]([^'"`]+)['"`]/g;
+
+// Go HTTP frameworks with inline middleware chains (gin, echo, fiber, chi):
+//   router.GET("/users", AuthMiddleware(), listUsers)
+// A route is considered guarded when any argument after the path looks like
+// auth middleware. net/http's http.HandleFunc has no inline guard convention
+// and stays out of scope deliberately.
+const GO_ROUTE =
+  /\b(?:router|r|app|api|e|h|srv)\.(GET|POST|PUT|PATCH|DELETE)\s*\(\s*"([^"]+)"\s*,\s*([^)]*)\)/g;
+const GO_GROUP_PREFIX = /\b(?:router|r|app|e|h|api)\.Group\(\s*"([^"]+)"/;
+const GO_GUARD_ARGS = /(Auth|Jwt|Session|Admin|Middleware|Protect|Guard|Login|Permission)/;
+
+// Laravel route DSL:
+//   Route::get('/account/settings', [Controller::class, 'edit'])->middleware('auth');
+const LARAVEL_ROUTE = /Route::(get|post|put|patch|delete)\s*\(\s*['"]([^'"]+)['"]/g;
+const LARAVEL_GUARD = /->middleware\s*\(([^)]*)\)/i;
+
+// Spring Boot mappings + annotation guards:
+//   @PreAuthorize(...) / @Secured("...") / @RolesAllowed(...) above @GetMapping("/profile")
+const SPRING_MAPPING = /@(?:Get|Post|Put|Patch|Delete)Mapping\s*\(\s*(?:value\s*=\s*)?["']([^"']+)["']/g;
+const SPRING_CLASS_PREFIX_SOURCE =
+  /@RequestMapping\s*\(\s*(?:value\s*=\s*)?["']([^"']+)["']/.source;
+const SPRING_GUARD = /@(PreAuthorize|Secured|RolesAllowed|PostAuthorize)|SecurityFilterChain/i;
 
 // Next.js App Router: `app/api/**/route.ts` exporting named method handlers.
 const NEXT_APP_HANDLER =
@@ -60,29 +83,69 @@ function windowAround(content: string, index: number, chars = 400): string {
   return content.slice(start, end);
 }
 
+/**
+ * Segment-scoped guard search (see scanWithPattern): how far BACK of a route
+ * decorator its own annotations may sit, and how far FORWARD to search when
+ * the route is the last in the file.
+ */
+const GUARD_LOOKBEHIND = 150;
+const GUARD_FORWARD_MAX = 600;
+
+/**
+ * Removes comment text from a guard-search segment: a comment mentioning
+ * "@login_required" or "@PreAuthorize" documents nothing about runtime auth.
+ * Line-comment markers require leading whitespace so URLs (https://) survive.
+ */
+function withoutComments(s: string): string {
+  return s
+    .replace(/\/\*[\s\S]*?\*\//g, " ")
+    .replace(/(^|\n)(\s*)(\/\/|#|--)[^\n]*/g, "$1")
+    .replace(/(\s)(\/\/|#)[^\n]*/g, " ");
+}
+
 function lineNumberAt(content: string, index: number): number {
   return content.slice(0, index).split("\n").length;
 }
 
 function scanWithPattern(relPath: string, content: string, pattern: RegExp, framework: string, findings: Finding[]) {
-  // FastAPI routers commonly declare a prefix once (`APIRouter(prefix="/admin")`)
-  // that every decorator path is mounted under. Without it we'd report
-  // '/users' instead of '/admin/users' — losing the segment that often carries
-  // the sensitive-path signal. Best-effort: first prefix in the file wins.
-  const prefixMatch = content.match(/APIRouter\([^)]*?prefix\s*=\s*["']([^"']+)["']/);
-  const routerPrefix = framework === "FastAPI" && prefixMatch ? prefixMatch[1] : "";
+  // Routers commonly declare a prefix once — FastAPI `APIRouter(prefix="/admin")`,
+  // Flask `Blueprint(..., url_prefix="/api")` — that every decorator mounts under.
+  // Without it we'd report '/users' instead of '/admin/users', losing the
+  // segment that often carries the sensitive-path signal. Best-effort: first
+  // prefix in the file wins.
+  const apiRouterMatch = content.match(/APIRouter\([^)]*?prefix\s*=\s*["']([^"']+)["']/);
+  const blueprintMatch = content.match(/Blueprint\([^)]*?url_prefix\s*=\s*["']([^"']+)["']/);
+  const routerPrefix =
+    framework === "Flask"
+      ? blueprintMatch
+        ? blueprintMatch[1]
+        : ""
+      : apiRouterMatch
+        ? apiRouterMatch[1]
+        : "";
 
   pattern.lastIndex = 0;
+  // Collect all matches first so each route's guard search can be scoped to
+  // its OWN segment: from a little before the decorator (its own annotations)
+  // to just before the next route. A symmetric window would let an adjacent
+  // route's @login_required suppress its unguarded neighbor — a precision bug
+  // on small files and back-to-back endpoints.
+  const all: RegExpExecArray[] = [];
   let match: RegExpExecArray | null;
-  while ((match = pattern.exec(content)) !== null) {
-    const routePath = routerPrefix + match[3];
+  while ((match = pattern.exec(content)) !== null) all.push(match);
+
+  for (let i = 0; i < all.length; i++) {
+    const m = all[i];
+    const routePath = routerPrefix + m[3];
     if (!SENSITIVE_PATH_HINTS.test(routePath)) continue;
 
-    const nearby = windowAround(content, match.index);
+    const segStart = Math.max(0, m.index - GUARD_LOOKBEHIND);
+    const nextIdx = i + 1 < all.length ? all[i + 1].index : Math.min(content.length, m.index + GUARD_FORWARD_MAX);
+    const segment = withoutComments(content.slice(segStart, nextIdx));
     if (
-      AUTH_GUARD_HINTS.test(nearby) ||
-      FASTAPI_CUSTOM_GUARD_HINTS.test(nearby) ||
-      FASTAPI_HEADER_AUTH_HINTS.test(nearby)
+      AUTH_GUARD_HINTS.test(segment) ||
+      FASTAPI_CUSTOM_GUARD_HINTS.test(segment) ||
+      FASTAPI_HEADER_AUTH_HINTS.test(segment)
     ) {
       continue; // looks guarded, skip
     }
@@ -91,7 +154,7 @@ function scanWithPattern(relPath: string, content: string, pattern: RegExp, fram
       category: "unauthenticated-endpoint",
       severity: "high",
       file: relPath,
-      line: lineNumberAt(content, match.index),
+      line: lineNumberAt(content, m.index),
       description: `${framework} route '${routePath}' looks like it handles user/account data but no auth check was found nearby.`,
       why_it_matters:
         "A route matching this naming pattern with no visible auth guard is a common way user data ends up readable or writable by anyone who finds the URL — the same class of bug as a missing Supabase RLS policy, generalized to any backend.",
@@ -154,11 +217,115 @@ function scanNextJsFile(relPath: string, content: string, findings: Finding[]) {
     });
 }
 
+/**
+ * Go frameworks (gin/echo/fiber/chi style): inline middleware args ARE the
+ * guard convention — `router.GET("/admin/stats", AuthMiddleware(), h)` is
+ * guarded, `router.GET("/users", h)` alone is not.
+ */
+function scanGoFile(relPath: string, content: string, findings: Finding[]) {
+  const prefixMatch = content.match(GO_GROUP_PREFIX);
+  const prefix = prefixMatch ? prefixMatch[1] : "";
+
+  GO_ROUTE.lastIndex = 0;
+  let match: RegExpExecArray | null;
+  while ((match = GO_ROUTE.exec(content)) !== null) {
+    const routePath = prefix + match[2];
+    if (!SENSITIVE_PATH_HINTS.test(routePath)) continue;
+
+    const nearby = windowAround(content, match.index);
+    // The chain args are THE guard location in these routers — a neighboring
+    // route's middleware must never guard this one, so no window fallback.
+    if (GO_GUARD_ARGS.test(match[3] ?? "")) {
+      continue; // middleware arg present
+    }
+    void nearby;
+
+    findings.push({
+      category: "unauthenticated-endpoint",
+      severity: "high",
+      file: relPath,
+      line: lineNumberAt(content, match.index),
+      description: `Go route '${routePath}' looks like it handles user/account data but no auth middleware was found in its arguments.`,
+      why_it_matters:
+        "In gin/echo/fiber-style routers, guards live in the handler chain itself. A sensitive path registered with no auth-looking middleware is publicly reachable.",
+      suggested_fix:
+        "Register an auth middleware before this handler (e.g. router.GET(path, AuthMiddleware(), handler)), or confirm the route is intentionally public.",
+    });
+  }
+}
+
+/** Laravel: guard = ->middleware('auth'…) within the SAME statement. */
+function scanLaravelFile(relPath: string, content: string, findings: Finding[]) {
+  LARAVEL_ROUTE.lastIndex = 0;
+  let match: RegExpExecArray | null;
+  while ((match = LARAVEL_ROUTE.exec(content)) !== null) {
+    const routePath = match[2];
+    if (!SENSITIVE_PATH_HINTS.test(routePath)) continue;
+
+    // Statement scope: from this route to the next Route:: / class end —
+    // an adjacent route's ->middleware must never guard this one.
+    const nextRoute = content.slice(match.index + 1).search(/\nRoute::/);
+    const statementEnd =
+      nextRoute === -1 ? Math.min(content.length, match.index + GUARD_FORWARD_MAX) : match.index + 1 + nextRoute;
+    const statement = withoutComments(content.slice(match.index, statementEnd));
+
+    const mw = statement.match(LARAVEL_GUARD);
+    if (mw && /(auth|admin|can:|role|permission|sanctum|passport)/i.test(mw[1])) continue;
+
+    findings.push({
+      category: "unauthenticated-endpoint",
+      severity: "high",
+      file: relPath,
+      line: lineNumberAt(content, match.index),
+      description: `Laravel route '${routePath}' looks like it handles user/account data but no auth middleware was found.`,
+      why_it_matters:
+        "Laravel routes are public unless protected by middleware. A user-data route without ->middleware('auth') is reachable by anyone who guesses the URL.",
+      suggested_fix:
+        "Chain ->middleware('auth') (or a role/permission middleware) onto this route, or move it into a protected group.",
+    });
+  }
+}
+
+/** Spring Boot: annotation guards within the mapping's own segment; class @RequestMapping composes as prefix. */
+function scanSpringFile(relPath: string, content: string, findings: Finding[]) {
+  const prefixMatch = content.match(new RegExp(SPRING_CLASS_PREFIX_SOURCE));
+  const prefix = prefixMatch ? prefixMatch[1] : "";
+
+  SPRING_MAPPING.lastIndex = 0;
+  const all: RegExpExecArray[] = [];
+  let match: RegExpExecArray | null;
+  while ((match = SPRING_MAPPING.exec(content)) !== null) all.push(match);
+
+  for (let i = 0; i < all.length; i++) {
+    const m = all[i];
+    const routePath = prefix + m[1];
+    if (!SENSITIVE_PATH_HINTS.test(routePath)) continue;
+
+    // Spring guards annotate ABOVE the mapping and nowhere else — backward
+    // only. Any forward reach swallows the NEXT endpoint's @PreAuthorize on
+    // small files and suppresses an unguarded neighbor.
+    const segment = withoutComments(content.slice(Math.max(0, m.index - GUARD_LOOKBEHIND), m.index));
+    if (SPRING_GUARD.test(segment) || AUTH_GUARD_HINTS.test(segment)) continue;
+
+    findings.push({
+      category: "unauthenticated-endpoint",
+      severity: "high",
+      file: relPath,
+      line: lineNumberAt(content, m.index),
+      description: `Spring route '${routePath}' looks like it handles user/account data but no security annotation was found nearby (@PreAuthorize/@Secured/@RolesAllowed).`,
+      why_it_matters:
+        "Spring controllers are only protected where a security annotation or filter rule applies. A user-data endpoint without one inherits the default chain — which may permit anonymous access.",
+      suggested_fix:
+        "Add @PreAuthorize/@Secured to this method (or cover it via SecurityFilterChain rules), or confirm it is intentionally public.",
+    });
+  }
+}
+
 export const unauthEndpoints: Detector = async (ctx) => {
   const findings: Finding[] = [];
 
   for (const relPath of ctx.files) {
-    if (!/\.(js|ts|jsx|tsx|py)$/.test(relPath)) continue;
+    if (!/\.(js|ts|jsx|tsx|py|go|php|java|kt)$/.test(relPath)) continue;
     if (relPath.includes("node_modules") || relPath.includes(".test.") || relPath.includes("__tests__")) continue;
 
     const loaded = await loadFile(ctx, relPath);
@@ -171,7 +338,15 @@ export const unauthEndpoints: Detector = async (ctx) => {
         scanNextJsFile(relPath, content, findings);
       }
     } else if (relPath.endsWith(".py")) {
-      scanWithPattern(relPath, content, FASTAPI_ROUTE, "FastAPI", findings);
+      // Flask and FastAPI share the decorator shape; label by import.
+      const framework = /from\s+flask|import\s+flask/i.test(content) ? "Flask" : "FastAPI";
+      scanWithPattern(relPath, content, FASTAPI_ROUTE, framework, findings);
+    } else if (relPath.endsWith(".go")) {
+      scanGoFile(relPath, content, findings);
+    } else if (relPath.endsWith(".php")) {
+      scanLaravelFile(relPath, content, findings);
+    } else if (/\.(java|kt)$/.test(relPath)) {
+      scanSpringFile(relPath, content, findings);
     }
   }
 

@@ -52,7 +52,7 @@ missed, and (c) mechanically detectable without semantic/legal judgment.
 |---|----------|------------------|---------------------|
 | 1 | Exposed secrets | API keys, tokens, private keys committed to the repo or hardcoded client-side | Account takeover, billing abuse, full data breach |
 | 2 | Copyleft license contamination | GPL/AGPL/LGPL-licensed dependencies pulled into a closed-source commercial app | Forced disclosure, legal demand letters, forced re-licensing |
-| 3 | Unauthenticated data endpoints | Routes/handlers that read or write user data with no auth middleware or RLS-equivalent check (Express, FastAPI, and Next.js API routes — App Router + Pages Router) | Full data exposure, the exact Supabase-RLS class of bug generalized to any backend |
+| 3 | Unauthenticated data endpoints | Routes/handlers that read or write user data with no auth middleware or RLS-equivalent check (Express, FastAPI, Flask, Next.js API routes in both router styles, Go gin/echo/fiber-style routers, Laravel, Spring Boot) | Full data exposure, the exact Supabase-RLS class of bug generalized to any backend |
 | 4 | PII collection with no privacy policy / consent artifact | Forms, analytics SDKs, or auth providers that collect PII, with no privacy-policy file or consent flow found in the repo | Regulatory exposure, App Store/Play Store rejection, user trust violation |
 | 5 | Client-side payment handling | Raw card-number/CVV fields or card data touching the user's own backend instead of a PCI-scoped processor SDK (Stripe Elements, etc.) | PCI violation, processor account termination, fraud liability |
 

@@ -15,6 +15,10 @@ export interface ScanSummary {
   by_severity: { critical: number; high: number; medium: number };
   truncated?: boolean;
   total_before_truncation?: number;
+  /** Stacks inferred from manifests (Flutter/Dart, Rust, Python…). */
+  project_types?: string[];
+  /** Honest coverage warning when a detected stack lacks endpoint coverage. */
+  coverage_caveat?: string;
   note: string;
 }
 

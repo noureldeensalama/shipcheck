@@ -1,0 +1,22 @@
+{
+  "packages": [
+    {
+      "name": "permissive/http-kit",
+      "license": ["MIT"]
+    },
+    {
+      "name": "acme/gpl-bundled",
+      "license": ["GPL-3.0-only"]
+    },
+    {
+      "name": "acme/no-license-pkg",
+      "license": []
+    }
+  ],
+  "packages-dev": [
+    {
+      "name": "dev/phpunit-thing",
+      "license": ["AGPL-3.0-only"]
+    }
+  ]
+}

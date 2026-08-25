@@ -479,5 +479,329 @@ export const licenseCheck: Detector = async (ctx) => {
   await checkNodeDependencies(ctx.rootDir, ctx.files, findings);
   await checkFlutterDependencies(ctx.rootDir, ctx.files, findings);
   await checkPythonDependencies(ctx.rootDir, ctx.files, findings);
+  await checkCargoDependencies(ctx.rootDir, ctx.files, findings);
+  await checkComposerDependencies(ctx.rootDir, ctx.files, findings);
+  await checkRubyDependencies(ctx.rootDir, ctx.files, findings);
   return findings;
 };
+
+// ── Rust (Cargo.toml → crates.io) ────────────────────────────────────────
+
+const cratesIoCache = new Map<string, PyLicenseLookup>();
+
+/** Test hook — clears the module-level crates.io cache. */
+export function clearCratesCache(): void {
+  cratesIoCache.clear();
+}
+
+async function fetchCrateLicense(name: string): Promise<PyLicenseLookup> {
+  const cached = cratesIoCache.get(name);
+  if (cached) return cached;
+
+  let lookup: PyLicenseLookup = { ok: false, declared: false, severity: null, label: "", reason: "unreachable" };
+  for (const delay of [0, 300]) {
+    if (delay > 0) await new Promise((r) => setTimeout(r, delay));
+    try {
+      // crates.io requires a User-Agent or returns 403.
+      const res = await fetch(`https://crates.io/api/v1/crates/${encodeURIComponent(name)}`, {
+        headers: { "User-Agent": "shipcheck (pre-launch license scanner)" },
+        signal: AbortSignal.timeout(10_000),
+      });
+      if (!res.ok) continue;
+      const json = (await res.json()) as { versions?: { license?: string; num?: string }[] };
+      const license = json.versions?.[0]?.license ?? "";
+      if (!license.trim()) {
+        lookup = { ok: true, declared: false, severity: null, label: "", reason: "no-license-data" };
+        break;
+      }
+      const { severity, label } = classifyPythonLicense(license);
+      lookup = { ok: true, declared: true, severity, label };
+      break;
+    } catch {
+      // retry
+    }
+  }
+  cratesIoCache.set(name, lookup);
+  return lookup;
+}
+
+/** Extracts crate names from [dependencies]-style tables; skips path/git/workspace-inherited deps. */
+export function parseCargoTomlDependencies(content: string): string[] {
+  const names = new Set<string>();
+  let inDeps = false;
+  for (const raw of content.split("\n")) {
+    const line = raw.split("#")[0].trim();
+    if (!line) continue;
+    if (line.startsWith("[")) {
+      inDeps = /\[dependencies\]/.test(line) || /\[.+\.dependencies\]/.test(line);
+      continue;
+    }
+    if (!inDeps) continue;
+    // Workspace inheritance comes in two shapes; both mean "resolved by the
+    // root manifest", and workspace members are the repo's OWN crates anyway.
+    if (/^[A-Za-z0-9_-]+\.workspace\s*=/.test(line)) continue;
+    if (/^(workspace\s*=)/.test(line)) continue;
+    const nameMatch = line.match(/^([A-Za-z0-9_-]+)\s*=/);
+    if (!nameMatch) continue;
+    // path = / git = deps are not on crates.io
+    if (/(^|[,{]\s*)(path|git)\s*=/.test(line.slice(nameMatch[0].length))) continue;
+    names.add(nameMatch[1]);
+  }
+  return [...names].sort();
+}
+
+/** Names of the repo's own crates from a root manifest's [workspace] members. */
+export function parseCargoWorkspaceMembers(content: string): string[] {
+  const members: string[] = [];
+  let inMembers = false;
+  for (const raw of content.split("\n")) {
+    const line = raw.split("#")[0].trim();
+    if (/^\[/.test(line)) { inMembers = false; continue; }
+    if (/^members\s*=/.test(line)) { inMembers = true; continue; }
+    if (inMembers) {
+      const m = line.match(/"([^"]+)"/g);
+      if (m) for (const quoted of m) members.push(quoted.slice(1, -1).split("/").pop()!);
+      if (line.includes("]")) break;
+    }
+  }
+  return [...new Set(members)].filter(Boolean);
+}
+
+async function checkCargoDependencies(rootDir: string, files: string[], findings: Finding[]) {
+  const manifests = files.filter((f) => f === "Cargo.toml" || f.endsWith("/Cargo.toml"));
+  if (manifests.length === 0) return;
+
+  // The repo's own crates (workspace members) are never crates.io packages.
+  let ownCrates = new Set<string>();
+  const rootManifest = manifests.find((m) => m === "Cargo.toml");
+  if (rootManifest) {
+    try {
+      ownCrates = new Set(parseCargoWorkspaceMembers(await readFile(join(rootDir, rootManifest), "utf-8")));
+    } catch {
+      // no readable root manifest; per-manifest filtering still applies
+    }
+  }
+
+  for (const manifestPath of manifests) {
+    if (ownCrates.has(manifestPath.split("/").slice(0, -1).pop() ?? "")) continue; // member crate's own manifest
+    let content: string;
+    try {
+      content = await readFile(join(rootDir, manifestPath), "utf-8");
+    } catch {
+      continue;
+    }
+    const deps = parseCargoTomlDependencies(content).filter((d) => !ownCrates.has(d));
+    const lookups = await mapWithConcurrency(deps, LICENSE_FETCH_CONCURRENCY, fetchCrateLicense);
+
+    for (let i = 0; i < deps.length; i++) {
+      emitDependencyLicenseFinding({
+        findings,
+        reportPath: `${manifestPath} (${deps[i]})`,
+        depName: deps[i],
+        source: "crates.io",
+        lookup: lookups[i],
+        strongWhy:
+          "Strong copyleft licenses like GPL generally require you to release your application's source code under the same license if you distribute binaries built from them.",
+      });
+    }
+  }
+}
+
+// ── Shared emitter for API-backed ecosystems ─────────────────────────────
+
+function emitDependencyLicenseFinding(opts: {
+  findings: Finding[];
+  reportPath: string;
+  depName: string;
+  source: string;
+  lookup: PyLicenseLookup;
+  strongWhy: string;
+}): void {
+  const { findings, reportPath, depName, source, lookup, strongWhy } = opts;
+
+  if (!lookup.ok) {
+    findings.push({
+      category: "copyleft-license",
+      severity: "medium",
+      file: reportPath,
+      description: `License for dependency '${depName}' could not be determined (${source} unreachable).`,
+      why_it_matters:
+        "Undetermined license means you have no confirmed legal basis to use the package commercially.",
+      suggested_fix: `Check '${depName}' on ${source} or its source repository for license metadata.`,
+    });
+    return;
+  }
+  if (!lookup.declared || lookup.severity === null) {
+    if (!lookup.declared) {
+      findings.push({
+        category: "copyleft-license",
+        severity: "medium",
+        file: reportPath,
+        description: `License for dependency '${depName}' could not be determined — its metadata declares no license.`,
+        why_it_matters:
+          "No declared license means all rights remain with the author by default; commercial use without confirmation is a real risk.",
+        suggested_fix: `Verify '${depName}' has a LICENSE file in its source repository, or replace it with a clearly-licensed package.`,
+      });
+    }
+    return; // declared and permissive → silent
+  }
+
+  const strong = lookup.severity === "critical";
+  findings.push({
+    category: "copyleft-license",
+    severity: lookup.severity,
+    file: reportPath,
+    description: `Dependency '${depName}' is licensed under ${lookup.label} (${strong ? "strong" : "weak"} copyleft) per ${source}'s metadata.`,
+    why_it_matters: strong
+      ? strongWhy
+      : "Weak copyleft is usually fine if you import the package unmodified, but modifying or vendoring it can trigger disclosure requirements.",
+    suggested_fix: strong
+      ? `Find a permissively-licensed alternative to '${depName}', or consult a lawyer before shipping if it must stay.`
+      : `Confirm you're using '${depName}' unmodified and as an external dependency.`,
+  });
+}
+
+// ── PHP (composer.lock — license data is embedded, fully offline) ─────────
+
+interface ComposerPackage {
+  name?: string;
+  license?: string[];
+}
+
+/** Extracts runtime package entries from composer.lock JSON. */
+export function parseComposerLockPackages(content: string): { name: string; licenses: string[] }[] {
+  let doc: { packages?: ComposerPackage[] };
+  try {
+    doc = JSON.parse(content);
+  } catch {
+    return [];
+  }
+  return (doc.packages ?? [])
+    .filter((p) => typeof p.name === "string")
+    .map((p) => ({ name: p.name as string, licenses: Array.isArray(p.license) ? p.license : [] }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+async function checkComposerDependencies(rootDir: string, files: string[], findings: Finding[]) {
+  const locks = files.filter((f) => f === "composer.lock" || f.endsWith("/composer.lock"));
+  for (const lockPath of locks) {
+    let content: string;
+    try {
+      content = await readFile(join(rootDir, lockPath), "utf-8");
+    } catch {
+      continue;
+    }
+    // packages-dev is deliberately skipped, same shipping-scope rule as npm devDependencies.
+    for (const pkg of parseComposerLockPackages(content)) {
+      const haystack = pkg.licenses.join(" | ");
+      if (!haystack.trim()) {
+        findings.push({
+          category: "copyleft-license",
+          severity: "medium",
+          file: `${lockPath} (${pkg.name})`,
+          description: `Composer dependency '${pkg.name}' declares no license in composer.lock.`,
+          why_it_matters:
+            "No declared license means all rights remain with the author by default; commercial use without confirmation is a real risk.",
+          suggested_fix: `Verify '${pkg.name}' has a LICENSE file upstream, or pin a clearly-licensed version.`,
+        });
+        continue;
+      }
+      const { severity, label } = classifyPythonLicense(haystack);
+      if (severity === null) continue; // permissive → silent
+      findings.push({
+        category: "copyleft-license",
+        severity,
+        file: `${lockPath} (${pkg.name})`,
+        description: `Composer dependency '${pkg.name}' is licensed under ${label} (${severity === "critical" ? "strong" : "weak"} copyleft).`,
+        why_it_matters:
+          severity === "critical"
+            ? "Strong copyleft licenses like GPL generally require you to release your application's source code under the same license when you distribute it."
+            : "Weak copyleft is usually fine if you import the package unmodified, but modifying or vendoring it can trigger disclosure requirements.",
+        suggested_fix:
+          severity === "critical"
+            ? `Find a permissively-licensed alternative to '${pkg.name}', or consult a lawyer before shipping if it must stay.`
+            : `Confirm you're using '${pkg.name}' unmodified and as an external dependency.`,
+      });
+    }
+  }
+}
+
+// ── Ruby (Gemfile.lock → rubygems.org) ────────────────────────────────────
+
+const rubygemsCache = new Map<string, PyLicenseLookup>();
+
+/** Test hook — clears the module-level rubygems cache. */
+export function clearRubygemsCache(): void {
+  rubygemsCache.clear();
+}
+
+async function fetchGemLicense(name: string): Promise<PyLicenseLookup> {
+  const cached = rubygemsCache.get(name);
+  if (cached) return cached;
+
+  let lookup: PyLicenseLookup = { ok: false, declared: false, severity: null, label: "", reason: "unreachable" };
+  for (const delay of [0, 300]) {
+    if (delay > 0) await new Promise((r) => setTimeout(r, delay));
+    try {
+      const res = await fetch(`https://rubygems.org/api/v1/gems/${encodeURIComponent(name)}.json`, {
+        signal: AbortSignal.timeout(10_000),
+      });
+      if (!res.ok) continue;
+      const json = (await res.json()) as { licenses?: string[] | null };
+      const licenses = Array.isArray(json.licenses) ? json.licenses : [];
+      if (licenses.length === 0) {
+        lookup = { ok: true, declared: false, severity: null, label: "", reason: "no-license-data" };
+        break;
+      }
+      const { severity, label } = classifyPythonLicense(licenses.join(" | "));
+      lookup = { ok: true, declared: true, severity, label };
+      break;
+    } catch {
+      // retry
+    }
+  }
+  rubygemsCache.set(name, lookup);
+  return lookup;
+}
+
+/** Extracts gem names from a Gemfile.lock GEM section's specs list. */
+export function parseGemfileLockGems(content: string): string[] {
+  const names = new Set<string>();
+  let inSpecs = false;
+  for (const raw of content.split("\n")) {
+    if (raw.trim() === "" ) { if (inSpecs && !raw.startsWith("    ")) inSpecs = false; continue; }
+    if (/^  specs:/.test(raw)) { inSpecs = true; continue; }
+    if (inSpecs) {
+      if (!raw.startsWith("    ")) { inSpecs = false; continue; }
+      const m = raw.trim().match(/^([a-zA-Z0-9_.-]+)\s+\(/);
+      if (m) names.add(m[1]);
+    }
+  }
+  return [...names].sort();
+}
+
+async function checkRubyDependencies(rootDir: string, files: string[], findings: Finding[]) {
+  const lockfiles = files.filter((f) => f === "Gemfile.lock" || f.endsWith("/Gemfile.lock"));
+  for (const lockPath of lockfiles) {
+    let content: string;
+    try {
+      content = await readFile(join(rootDir, lockPath), "utf-8");
+    } catch {
+      continue;
+    }
+    const gems = parseGemfileLockGems(content);
+    const lookups = await mapWithConcurrency(gems, LICENSE_FETCH_CONCURRENCY, fetchGemLicense);
+
+    for (let i = 0; i < gems.length; i++) {
+      emitDependencyLicenseFinding({
+        findings,
+        reportPath: `${lockPath} (${gems[i]})`,
+        depName: gems[i],
+        source: "rubygems.org",
+        lookup: lookups[i],
+        strongWhy:
+          "Strong copyleft licenses like GPL generally require you to release your application's source code under the same license when you distribute it.",
+      });
+    }
+  }
+}

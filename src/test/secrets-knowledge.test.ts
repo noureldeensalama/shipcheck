@@ -64,3 +64,31 @@ test("modern provider signatures fire (OpenRouter, SendGrid)", async () => {
   assert.ok(names.some((n) => n.includes("OpenRouter")), JSON.stringify(names));
   assert.ok(names.some((n) => n.includes("SendGrid")), JSON.stringify(names));
 });
+
+test("full PEM private key block fires; bare header strings in code do not", async () => {
+  // Dogfooding found .replace(/-----BEGIN PRIVATE KEY-----/, "") code — a
+  // processor of env-loaded keys — flagged as a key. Only complete blocks
+  // with real payload length count.
+  const body64 = "QmFzZTY0cGF5bG9hZGJvZHlGb3JQZW1CbG9ja1Rlc3RpbmdQdXJwb3Nlc1dvcmthcm91bmRIZXJlU2hvdWxkRXhjZWVkT25lSHVuZHJlZENoYXJhY3RlcnNTb1RoZUJsT2NrRGV0ZWN0c1RydWx5";
+  const fullBlock = `const LEAKED = \`-----BEGIN PRIVATE KEY-----\n${body64}\n-----END PRIVATE KEY-----\`;\n`;
+  const findings = await scanTmp({
+    "src/real-leak.ts": fullBlock,
+    "src/key-processor.ts": [
+      'const keyData = sa.private_key',
+      '  .replace(/-----BEGIN PRIVATE KEY-----/, "")',
+      '  .replace(/-----END PRIVATE KEY-----/, "");',
+      "",
+    ].join("\n"),
+  });
+  const pemFindings = findings.filter((f) => f.description.includes("private key"));
+  assert.equal(pemFindings.length, 1, JSON.stringify(findings.map((f) => f.file)));
+  assert.equal(pemFindings[0].file, "src/real-leak.ts");
+});
+
+test("firebase_options.dart (Flutter generated config) does not fire", async () => {
+  const findings = await scanTmp({
+    "lib/firebase_options.dart": "static const apiKey = 'AIzaSyD3INTZhzaYl8wpMS4sak4MLv2-0FHmH5k';\n",
+    "lib/app.dart": "void main() {}\n",
+  });
+  assert.deepEqual(findings.filter((f) => f.description.includes("Google API Key")), []);
+});
