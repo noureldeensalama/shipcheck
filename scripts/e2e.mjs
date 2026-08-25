@@ -139,7 +139,7 @@ try {
   );
 
   // scan_diff on a non-repo must fail with guidance toward scan_repo.
-  const notRepo = await rpc("tools/call", { name: "scan_diff", arguments: { path: "/tmp" } });
+  const notRepo = await rpc("tools/call", { name: "scan_diff", arguments: { path: process.platform === "win32" ? "C:\\Windows" : "/tmp" } });
   check(
     "scan_diff on non-repo points to scan_repo",
     notRepo.result?.isError === true && /scan_repo/.test(notRepo.result.content[0].text),
