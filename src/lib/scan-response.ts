@@ -41,11 +41,11 @@ export function buildScanResult(allFindings: Finding[]): ScanResult {
   const findings = truncated ? sorted.slice(0, MAX_RETURNED_FINDINGS) : sorted;
 
   let note =
-    "These are risk-pattern findings, not a legal compliance determination. Zero findings means nothing in these five categories was detected — it does not mean the app is safe to ship.";
+    "These are warnings about common risky patterns we know how to spot — not a legal review and not a guarantee. Finding nothing just means nothing matched these specific checks; other problems can still exist.";
   if (truncated) {
     note +=
-      ` OUTPUT TRUNCATED: ${sorted.length} findings exceeded the ${MAX_RETURNED_FINDINGS}-finding response cap. ` +
-      `Critical and high findings are shown first; re-run scan_repo with a 'categories' filter to see the rest.`;
+      ` We found more warnings than fit in one report (${sorted.length} total) and kept the most serious ones first.` +
+      ` Run a scan again with a categories filter to see the rest.`;
   }
 
   return {

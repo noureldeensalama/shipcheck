@@ -35,6 +35,18 @@ severity-ordered, compact by design.
 Every finding includes file/line, a plain-language explanation, and a suggested fix — never a pass/fail
 verdict.
 
+Every finding includes file/line, a plain-language explanation, and a suggested fix — never a pass/fail
+verdict. Here's what one actually looks like:
+
+> **[critical] lib/firebase_options.dart** — Possible Google API Key found in code that runs on
+> people's devices.
+>
+> **Why this matters:** This key travels inside your app to every user's phone or browser. Anyone can
+> copy it out and use it as if they were you — spending your money or reading your data.
+>
+> **The fix:** Move the key into a separate secrets file that never becomes part of the project, load
+> it at startup, then get a new key from the provider's dashboard — treat this one as stolen.
+
 ## Install
 
 **As a Claude Code plugin:**

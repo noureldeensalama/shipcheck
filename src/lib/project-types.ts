@@ -47,8 +47,7 @@ export function coverageCaveat(types: string[]): string | null {
   const uncovered = types.filter((t) => ENDPOINT_UNCOVERED_TYPES.has(t));
   if (uncovered.length === 0) return null;
   return (
-    `Detected ${uncovered.join(", ")} — secrets and license checks cover every stack, but ` +
-    `unauthenticated-endpoint detection does not fully cover these frameworks; treat that category ` +
-    `as partial for them rather than clean.`
+    `Your project uses ${uncovered.join(" and ")}. Our key and license checks work for every kind of project, ` +
+    `but our unlocked-route checker doesn't fully understand these yet — so an empty result there is not proof that everything is locked down.`
   );
 }

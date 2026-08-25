@@ -157,9 +157,9 @@ function scanWithPattern(relPath: string, content: string, pattern: RegExp, fram
       line: lineNumberAt(content, m.index),
       description: `${framework} route '${routePath}' looks like it handles user/account data but no auth check was found nearby.`,
       why_it_matters:
-        "A route matching this naming pattern with no visible auth guard is a common way user data ends up readable or writable by anyone who finds the URL — the same class of bug as a missing Supabase RLS policy, generalized to any backend.",
+        "Anyone on the internet who guesses this address can read or change other people's information. There's no lock on the door.",
       suggested_fix:
-        "Add an auth check (middleware, decorator, or explicit session/token verification) before this handler runs, or confirm this route is intentionally public and rename it clearly if so.",
+        "Add a login check so this address turns away anyone who isn't signed in (every framework has a standard way to do this), or make it obvious the address is meant to be public.",
     });
   }
 }
@@ -211,9 +211,9 @@ function scanNextJsFile(relPath: string, content: string, findings: Finding[]) {
       line: lineNumberAt(content, firstHandlerIndex),
       description: `Next.js API route '${routePath}' looks like it handles user/account data but no auth check was found in the handler file.`,
       why_it_matters:
-        "A route matching this naming pattern with no visible auth guard is a common way user data ends up readable or writable by anyone who finds the URL. In Next.js, every file under app/api or pages/api is publicly routable unless you protect it.",
+        "In Next.js, every file in your API folders becomes a live web address automatically — and this one has no login check, so anyone who guesses the address can read or change other people's information.",
       suggested_fix:
-        "Add an auth check (e.g. getServerSession / withApiAuthRequired for NextAuth, or your own token verification) at the top of the handler before reading or writing data.",
+        "Make the address check for a signed-in user before doing anything (NextAuth's getServerSession is the usual way), or make it obvious the address is meant to be public.",
     });
 }
 
@@ -247,9 +247,9 @@ function scanGoFile(relPath: string, content: string, findings: Finding[]) {
       line: lineNumberAt(content, match.index),
       description: `Go route '${routePath}' looks like it handles user/account data but no auth middleware was found in its arguments.`,
       why_it_matters:
-        "In gin/echo/fiber-style routers, guards live in the handler chain itself. A sensitive path registered with no auth-looking middleware is publicly reachable.",
+        "In these Go routers, the lock lives inside the same line as the route — a list of helper functions between the address and the handler. This line has helpers but none of them look like a login check, so anyone can reach it.",
       suggested_fix:
-        "Register an auth middleware before this handler (e.g. router.GET(path, AuthMiddleware(), handler)), or confirm the route is intentionally public.",
+        "Add your login-checking helper into that chain (like router.GET(path, AuthMiddleware(), handler)) — or make it obvious this address is meant to be public.",
     });
   }
 }
@@ -279,9 +279,9 @@ function scanLaravelFile(relPath: string, content: string, findings: Finding[]) 
       line: lineNumberAt(content, match.index),
       description: `Laravel route '${routePath}' looks like it handles user/account data but no auth middleware was found.`,
       why_it_matters:
-        "Laravel routes are public unless protected by middleware. A user-data route without ->middleware('auth') is reachable by anyone who guesses the URL.",
+        "Laravel routes are open to everyone until you attach a guard. This user-data route has none, so anyone who guesses the address gets in.",
       suggested_fix:
-        "Chain ->middleware('auth') (or a role/permission middleware) onto this route, or move it into a protected group.",
+        "Attach ->middleware('auth') to this route (or put it in a group that already has guards).",
     });
   }
 }
@@ -314,9 +314,9 @@ function scanSpringFile(relPath: string, content: string, findings: Finding[]) {
       line: lineNumberAt(content, m.index),
       description: `Spring route '${routePath}' looks like it handles user/account data but no security annotation was found nearby (@PreAuthorize/@Secured/@RolesAllowed).`,
       why_it_matters:
-        "Spring controllers are only protected where a security annotation or filter rule applies. A user-data endpoint without one inherits the default chain — which may permit anonymous access.",
+        "Spring only locks a route when a security note (@PreAuthorize and friends) sits on it, or a global rule covers it. This user-data route has neither, so visitors without accounts may get in.",
       suggested_fix:
-        "Add @PreAuthorize/@Secured to this method (or cover it via SecurityFilterChain rules), or confirm it is intentionally public.",
+        "Put @PreAuthorize or @Secured on this method (or cover it with a SecurityFilterChain rule), or make it obvious the route is meant to be public.",
     });
   }
 }

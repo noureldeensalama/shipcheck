@@ -2,6 +2,15 @@ import { join } from "node:path";
 import { parse as parseYaml } from "yaml";
 import correct from "spdx-correct";
 import { readTextClean } from "../lib/content.js";
+import {
+  licenseWhyStrong,
+  licenseWhyWeak,
+  licenseWhyUndeclared,
+  licenseWhyLookupFailed,
+  licenseFixStrong,
+  licenseFixWeak,
+  licenseFixUndeclared,
+} from "../lib/plain-words.js";
 import type { Detector, Finding } from "../types.js";
 
 /**
@@ -61,9 +70,9 @@ async function checkNodeDependency(rootDir: string, pkgDir: string, dep: string,
         category: "copyleft-license",
         severity: "medium",
         file: reportPath,
-        description: `Dependency '${dep}' has no declared license.`,
-        why_it_matters: "Undeclared license means you have no legal basis to redistribute or use the package commercially — technically all rights reserved by default.",
-        suggested_fix: `Check ${dep}'s repository directly for a LICENSE file, or replace it with a package that declares one clearly.`,
+        description: `Package '${dep}' doesn't say what you're allowed to do with it (no license).`,
+        why_it_matters: licenseWhyUndeclared("npm"),
+        suggested_fix: licenseFixUndeclared(dep),
       });
       return;
     }
@@ -74,20 +83,18 @@ async function checkNodeDependency(rootDir: string, pkgDir: string, dep: string,
         category: "copyleft-license",
         severity: "critical",
         file: reportPath,
-        description: `Dependency '${dep}' is licensed under ${rawLicense} (strong copyleft).`,
-        why_it_matters:
-          "Strong copyleft licenses like GPL/AGPL generally require you to release your application's source code under the same license if you distribute or (for AGPL) even network-serve it. This can force disclosure of your entire proprietary codebase.",
-        suggested_fix: `Find a permissively-licensed alternative to '${dep}' (MIT/Apache-2.0/BSD), or consult a lawyer before shipping if it must stay.`,
+        description: `Package '${dep}' uses ${rawLicense} — a "share your source" license.`,
+        why_it_matters: licenseWhyStrong(rawLicense),
+        suggested_fix: licenseFixStrong(dep),
       });
     } else if (WEAK_COPYLEFT.has(normalized)) {
       findings.push({
         category: "copyleft-license",
         severity: "medium",
         file: reportPath,
-        description: `Dependency '${dep}' is licensed under ${rawLicense} (weak copyleft).`,
-        why_it_matters:
-          "Weak copyleft is usually fine if you only dynamically link/import the package without modifying its source, but modifying it or statically bundling it can trigger disclosure requirements.",
-        suggested_fix: `Confirm you're using '${dep}' unmodified and as an external dependency, not a forked/vendored copy.`,
+        description: `Package '${dep}' uses ${rawLicense} — a mild share-your-changes license.`,
+        why_it_matters: licenseWhyWeak(),
+        suggested_fix: licenseFixWeak(dep),
       });
     }
   } catch {
@@ -250,11 +257,10 @@ async function checkPubspecLock(lockPath: string, lockContent: string, findings:
         file: reportPath,
         description:
           lookup.reason === "no-license-tags"
-            ? `License for pub.dev dependency '${dep.name}' could not be determined — pub.dev returned score data with no license tags (a transient state on pub.dev's side; re-scanning usually resolves it).`
-            : `License for pub.dev dependency '${dep.name}' could not be determined (pub.dev unreachable or package not found).`,
-        why_it_matters:
-          "Undetermined license means you have no confirmed legal basis to use the package commercially — some packages misreport or omit license metadata entirely.",
-        suggested_fix: `Check '${dep.name}' directly on pub.dev or its source repository for a LICENSE file, or replace it with a package that declares one clearly.`,
+            ? `We couldn't look up '${dep.name}' because pub.dev sent back incomplete info right now (their side; scanning again usually fixes it).`
+            : `We couldn't reach pub.dev to look up '${dep.name}'.`,
+        why_it_matters: licenseWhyLookupFailed("pub.dev"),
+        suggested_fix: licenseFixUndeclared(dep.name),
       });
       continue;
     }
@@ -266,20 +272,18 @@ async function checkPubspecLock(lockPath: string, lockContent: string, findings:
         category: "copyleft-license",
         severity: "critical",
         file: `pubspec.lock (${dep.name} ${dep.version})`,
-        description: `pub.dev dependency '${dep.name}' version ${dep.version} is licensed under ${(licenseTags ?? []).join(" OR ")} (strong copyleft) per pub.dev's license data.`,
-        why_it_matters:
-          "Strong copyleft licenses like GPL/AGPL generally require you to release your application's source code under the same license if you distribute or (for AGPL) even network-serve it. This can force disclosure of your entire proprietary codebase.",
-        suggested_fix: `Find a permissively-licensed alternative to '${dep.name}', or consult a lawyer before shipping if it must stay.`,
+        description: `Flutter package '${dep.name}' (version ${dep.version}) uses ${licenseTags.join(" OR ")} — a "share your source" license.`,
+        why_it_matters: licenseWhyStrong(licenseTags.join(" OR ")),
+        suggested_fix: licenseFixStrong(dep.name),
       });
     } else if (severity === "medium") {
       findings.push({
         category: "copyleft-license",
         severity: "medium",
         file: `pubspec.lock (${dep.name} ${dep.version})`,
-        description: `pub.dev dependency '${dep.name}' version ${dep.version} is licensed under ${(licenseTags ?? []).join(" OR ")} (weak copyleft) per pub.dev's license data.`,
-        why_it_matters:
-          "Weak copyleft is usually fine if you only import the package without modifying its source, but modifying it or vendoring its code can trigger disclosure requirements.",
-        suggested_fix: `Confirm you're using '${dep.name}' unmodified and as an external dependency, not a forked/vendored copy.`,
+        description: `Flutter package '${dep.name}' (version ${dep.version}) uses a mild share-your-changes license (${licenseTags.join(" OR ")}).`,
+        why_it_matters: licenseWhyWeak(),
+        suggested_fix: licenseFixWeak(dep.name),
       });
     }
   }
@@ -431,10 +435,9 @@ async function checkPythonDependencies(rootDir: string, files: string[], finding
           category: "copyleft-license",
           severity: "medium",
           file: reportPath,
-          description: `License for PyPI dependency '${dep}' could not be determined (pypi.org unreachable).`,
-          why_it_matters:
-            "Undetermined license means you have no confirmed legal basis to use the package commercially.",
-          suggested_fix: `Check '${dep}' on pypi.org or its source repository for license metadata.`,
+          description: `We couldn't reach pypi.org to look up '${dep}'.`,
+          why_it_matters: licenseWhyLookupFailed("pypi.org"),
+          suggested_fix: licenseFixUndeclared(dep),
         });
         continue;
       }
@@ -444,30 +447,27 @@ async function checkPythonDependencies(rootDir: string, files: string[], finding
           category: "copyleft-license",
           severity: "critical",
           file: reportPath,
-          description: `PyPI dependency '${dep}' is licensed under ${lookup.label} (strong copyleft) per its PyPI metadata.`,
-          why_it_matters:
-            "Strong copyleft licenses like GPL/AGPL generally require you to release your application's source code under the same license if you distribute or (for AGPL) even network-serve it.",
-          suggested_fix: `Find a permissively-licensed alternative to '${dep}', or consult a lawyer before shipping if it must stay.`,
+          description: `Python package '${dep}' uses ${lookup.label} — a "share your source" license.`,
+          why_it_matters: licenseWhyStrong(lookup.label),
+          suggested_fix: licenseFixStrong(dep),
         });
       } else if (lookup.severity === "medium") {
         findings.push({
           category: "copyleft-license",
           severity: "medium",
           file: reportPath,
-          description: `PyPI dependency '${dep}' is licensed under ${lookup.label} (weak copyleft) per its PyPI metadata.`,
-          why_it_matters:
-            "Weak copyleft is usually fine if you import the package unmodified, but modifying or vendoring it can trigger disclosure requirements.",
-          suggested_fix: `Confirm you're using '${dep}' unmodified and as an external dependency.`,
+          description: `Python package '${dep}' uses a mild share-your-changes license (${lookup.label}).`,
+          why_it_matters: licenseWhyWeak(),
+          suggested_fix: licenseFixWeak(dep),
         });
       } else if (!lookup.declared) {
         findings.push({
           category: "copyleft-license",
           severity: "medium",
           file: reportPath,
-          description: `License for PyPI dependency '${dep}' could not be determined — its metadata declares no license.`,
-          why_it_matters:
-            "No declared license means all rights remain with the author by default; using it commercially without confirmation is a real risk.",
-          suggested_fix: `Verify '${dep}' has a LICENSE file in its source repository, or replace it with a clearly-licensed package.`,
+          description: `Python package '${dep}' doesn't say what you're allowed to do with it (no license listed).`,
+          why_it_matters: licenseWhyUndeclared("pypi.org"),
+          suggested_fix: licenseFixUndeclared(dep),
         });
       }
     }
@@ -624,10 +624,9 @@ function emitDependencyLicenseFinding(opts: {
       category: "copyleft-license",
       severity: "medium",
       file: reportPath,
-      description: `License for dependency '${depName}' could not be determined (${source} unreachable).`,
-      why_it_matters:
-        "Undetermined license means you have no confirmed legal basis to use the package commercially.",
-      suggested_fix: `Check '${depName}' on ${source} or its source repository for license metadata.`,
+      description: `We couldn't reach ${source} to look up '${depName}'.`,
+      why_it_matters: licenseWhyLookupFailed(source),
+      suggested_fix: licenseFixUndeclared(depName),
     });
     return;
   }
@@ -637,10 +636,9 @@ function emitDependencyLicenseFinding(opts: {
         category: "copyleft-license",
         severity: "medium",
         file: reportPath,
-        description: `License for dependency '${depName}' could not be determined — its metadata declares no license.`,
-        why_it_matters:
-          "No declared license means all rights remain with the author by default; commercial use without confirmation is a real risk.",
-        suggested_fix: `Verify '${depName}' has a LICENSE file in its source repository, or replace it with a clearly-licensed package.`,
+        description: `Package '${depName}' doesn't say what you're allowed to do with it (no license listed).`,
+        why_it_matters: licenseWhyUndeclared(source),
+        suggested_fix: licenseFixUndeclared(depName),
       });
     }
     return; // declared and permissive → silent
@@ -651,13 +649,11 @@ function emitDependencyLicenseFinding(opts: {
     category: "copyleft-license",
     severity: lookup.severity,
     file: reportPath,
-    description: `Dependency '${depName}' is licensed under ${lookup.label} (${strong ? "strong" : "weak"} copyleft) per ${source}'s metadata.`,
-    why_it_matters: strong
-      ? strongWhy
-      : "Weak copyleft is usually fine if you import the package unmodified, but modifying or vendoring it can trigger disclosure requirements.",
-    suggested_fix: strong
-      ? `Find a permissively-licensed alternative to '${depName}', or consult a lawyer before shipping if it must stay.`
-      : `Confirm you're using '${depName}' unmodified and as an external dependency.`,
+    description: strong
+      ? `Package '${depName}' uses ${lookup.label} — a "share your source" license.`
+      : `Package '${depName}' uses a mild share-your-changes license (${lookup.label}).`,
+    why_it_matters: strong ? licenseWhyStrong(lookup.label) : licenseWhyWeak(),
+    suggested_fix: strong ? licenseFixStrong(depName) : licenseFixWeak(depName),
   });
 }
 
@@ -699,10 +695,9 @@ async function checkComposerDependencies(rootDir: string, files: string[], findi
           category: "copyleft-license",
           severity: "medium",
           file: `${lockPath} (${pkg.name})`,
-          description: `Composer dependency '${pkg.name}' declares no license in composer.lock.`,
-          why_it_matters:
-            "No declared license means all rights remain with the author by default; commercial use without confirmation is a real risk.",
-          suggested_fix: `Verify '${pkg.name}' has a LICENSE file upstream, or pin a clearly-licensed version.`,
+          description: `PHP package '${pkg.name}' doesn't say what you're allowed to do with it (no license in composer.lock).`,
+          why_it_matters: licenseWhyUndeclared("its listing"),
+          suggested_fix: licenseFixUndeclared(pkg.name),
         });
         continue;
       }
@@ -712,15 +707,11 @@ async function checkComposerDependencies(rootDir: string, files: string[], findi
         category: "copyleft-license",
         severity,
         file: `${lockPath} (${pkg.name})`,
-        description: `Composer dependency '${pkg.name}' is licensed under ${label} (${severity === "critical" ? "strong" : "weak"} copyleft).`,
-        why_it_matters:
-          severity === "critical"
-            ? "Strong copyleft licenses like GPL generally require you to release your application's source code under the same license when you distribute it."
-            : "Weak copyleft is usually fine if you import the package unmodified, but modifying or vendoring it can trigger disclosure requirements.",
-        suggested_fix:
-          severity === "critical"
-            ? `Find a permissively-licensed alternative to '${pkg.name}', or consult a lawyer before shipping if it must stay.`
-            : `Confirm you're using '${pkg.name}' unmodified and as an external dependency.`,
+        description: severity === "critical"
+          ? `PHP package '${pkg.name}' uses ${label} — a "share your source" license.`
+          : `PHP package '${pkg.name}' uses a mild share-your-changes license (${label}).`,
+        why_it_matters: severity === "critical" ? licenseWhyStrong(label) : licenseWhyWeak(),
+        suggested_fix: severity === "critical" ? licenseFixStrong(pkg.name) : licenseFixWeak(pkg.name),
       });
     }
   }

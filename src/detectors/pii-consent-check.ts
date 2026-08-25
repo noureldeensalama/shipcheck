@@ -92,11 +92,11 @@ export const piiConsentCheck: Detector = async (ctx) => {
       severity: "high",
       file: first.file,
       line: first.line,
-      description: `Found data collection (${uniqueCollectors.join(", ")}) with no privacy policy or consent artifact found anywhere in the repo.`,
+      description: `Your project collects personal info (${uniqueCollectors.join(", ")}) but there's no privacy policy or consent popup anywhere in the project.`,
       why_it_matters:
-        "Collecting PII (emails, analytics identifiers, account data) without a disclosed privacy policy is a common App Store/Play Store rejection reason and a regulatory exposure point in most jurisdictions.",
+        "When you collect people's emails or track their activity, you're expected to tell them what happens to that info. App stores can reject apps that don't, and privacy laws in many countries require it — this is one of the easiest launch-blockers to fix.",
       suggested_fix:
-        "Add a privacy policy (even a generated one from a template service to start) and link it from your signup flow and app store listing before launch.",
+        "Write a short privacy policy page (template services can generate one) saying what you collect and why, then link it on your signup screen and app-store listing.",
     });
   }
 

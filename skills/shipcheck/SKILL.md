@@ -40,10 +40,13 @@ For both:
    present it as one issue with all locations, not N issues.
 3. Present findings to the user grouped by severity, critical first. For each finding, give:
    - What was found and where (file + line)
-   - Why it matters, in plain language — assume the user may not know what PCI, RLS, or copyleft mean
+   - Why it matters, in plain language — assume the reader is a complete beginner: explain any term
+     the finding uses (PCI, RLS, copyleft, middleware, JWT) in everyday words instead of repeating it
    - The suggested fix
    Keep your own output lean too: don't repeat identical explanations verbatim per finding when one
    shared explanation plus a location list says the same thing with fewer words.
+   The finding text is already written for beginners — match its tone. If you must use a technical
+   term, define it in the same sentence ("a service_role key — one that can bypass all privacy rules").
 4. **Always** include the tool's own disclaimer near the top of your summary: this is risk-pattern
    detection, not a legal compliance certification, and a zero-findings result means nothing in these
    five categories was detected — not that the app is legally or securely sound.

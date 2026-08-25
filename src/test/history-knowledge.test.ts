@@ -69,7 +69,7 @@ test("history scan finds secrets that were committed then removed — but not li
   assert.equal(scannedCommits > 0, true);
   const stripeHistory = findings.filter((f) => f.description.includes("Stripe Secret Key"));
   assert.equal(stripeHistory.length, 1, `expected the removed key flagged in history; got ${JSON.stringify(findings.map((f) => f.description))}`);
-  assert.match(stripeHistory[0].description, /HISTORY/);
+  assert.match(stripeHistory[0].description, /saved history/);
 
   // A value still live in the tree must NOT produce a duplicate history finding.
   const live = `OPENAI_KEY=sk-projAbCdEfGhIjKlMnOpQrStUvWx1234567890abcd\n`;

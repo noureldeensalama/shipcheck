@@ -85,7 +85,7 @@ test("same credential in multiple files deduplicates into one finding with locat
   assert.ok(f.locations, "multi-location finding must carry a locations array");
   assert.equal(f.locations!.length, 2);
   assert.ok(f.locations!.some((l) => l.startsWith("src/duplicate_key.py")), "second location listed");
-  assert.match(f.description, /2 locations/);
+  assert.match(f.description, /appears in 2 places/);
 });
 
 test("project-prefixed env variants (config/backend.env) fire as committed env files", async () => {

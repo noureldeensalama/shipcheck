@@ -83,7 +83,7 @@ async function runDetectors(rootDir: string, files: string[], activeCategories: 
 
 const server = new McpServer({
   name: "shipcheck",
-  version: "0.5.1",
+  version: "0.5.2",
 });
 
 server.registerTool(

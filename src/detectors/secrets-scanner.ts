@@ -161,11 +161,11 @@ export const secretsScanner: Detector = async (ctx) => {
         category: "exposed-secrets",
         severity: "critical",
         file: relPath,
-        description: `Environment file '${relPath}' is committed to the repository.`,
+        description: `Environment file '${relPath}' is part of your project.`,
         why_it_matters:
-          "Committed .env files ship real credentials into git history, which is readable by anyone with repo access forever, even after the file is later deleted.",
+          "A `.env` file holds your real passwords and keys. Because it's part of the project, everyone who can see the project can read every key inside — and old saved versions of the project keep showing it forever, even after you delete it.",
         suggested_fix:
-          `Remove ${relPath} from git tracking (git rm --cached ${relPath}), add it to .gitignore, rotate every credential it contained, and commit only a .env.example with placeholder values.`,
+          `Take ${relPath} out of the project (git rm --cached ${relPath}), list it in .gitignore, get new keys from each provider's website (treat the old ones as stolen), and keep only an empty template file named .env.example in the project.`,
       });
     }
     if (isFirebaseClientConfig) return;
@@ -235,13 +235,13 @@ export const secretsScanner: Detector = async (ctx) => {
       line: spots[0].line,
       ...(locations.length > 1 ? { locations } : {}),
       description:
-        `Possible ${hit.signatureName} found${hit.clientSide ? " in client-side code" : ""}` +
-        (locations.length > 1 ? ` — same value appears in ${locations.length} locations.` : "."),
+        `Possible ${hit.signatureName} found${hit.clientSide ? " in code that runs on people's devices" : ""}` +
+        (locations.length > 1 ? ` — the same key appears in ${locations.length} places.` : "."),
       why_it_matters: hit.clientSide
-        ? "This code ships to end users' browsers or app bundles. Anyone can extract the key from a network request, bundled JS, or the compiled app binary."
-        : "Hardcoded secrets in source (even server-side) end up in git history and CI logs, and are easy to leak via an accidental public repo or a misconfigured deploy.",
+        ? "This key travels inside your app to every user's phone or browser. Anyone can copy it out and use it as if they were you — spending your money or reading your data."
+        : "The key is typed directly into your project files. Anyone who ever gets a copy of the project — a teammate, a leaked backup, an accidental upload — can use that key as you.",
       suggested_fix:
-        "Move this value to an environment variable loaded at runtime, ensure it's never bundled into client code, and rotate the exposed credential immediately — assume it's already compromised.",
+        "Move the key into a separate secrets file that never becomes part of the project, load it at startup, then get a new key from the provider's dashboard — treat this one as stolen.",
     });
   }
 
@@ -299,12 +299,12 @@ export async function scanHistorySecrets(
       file: hit.files[0] ?? "(git history)",
       ...(hit.files.length > 1 ? { locations: hit.files } : {}),
       description:
-        `${hit.signatureName} exists in git HISTORY at commit(s) ${hit.commits.join(", ")}` +
-        ` — removed from current code, but still readable to anyone who clones the repo.`,
+        `${hit.signatureName} is still inside your project's saved history (commits ${hit.commits.join(", ")})` +
+        ` — it's gone from today's files, but anyone who can download the project can look at old versions and find it.`,
       why_it_matters:
-        "Deleting a credential from the latest commit does not delete it from git history. Anyone with repo access (or anyone at all, once pushed publicly) can check out an old revision and read every secret ever committed.",
+        "Deleting a key from today's files doesn't remove it from the project's past saved versions. Old copies stay viewable forever, so the key counts as stolen until you replace it.",
       suggested_fix:
-        "Rotate this credential immediately — assume compromised. Then purge it from history (git filter-repo or BFG) before considering the repo clean.",
+        "Get a new key from the provider's dashboard right now and stop using this one. Then scrub it from your project's history if the repo is or will be public (git filter-repo or BFG Repo-Cleaner can do this).",
     });
   }
   return { findings: out, scannedCommits };

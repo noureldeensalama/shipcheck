@@ -26,7 +26,7 @@ test("buildScanResult orders critical-first and caps output honestly", () => {
   assert.equal(result.summary.truncated, true);
   assert.equal(result.summary.total_before_truncation, many.length);
   assert.equal(result.findings.length, MAX_RETURNED_FINDINGS);
-  assert.match(result.summary.note, /OUTPUT TRUNCATED/);
+  assert.match(result.summary.note, /more warnings than fit in one report/);
 
   // every critical must have survived the cap
   const criticalTotal = many.filter((f) => f.severity === "critical").length;

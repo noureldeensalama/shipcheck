@@ -15,7 +15,7 @@ test("fires when data collection exists but no privacy/consent artifact is found
   assert.equal(f.severity, "high");
   assert.match(f.description, /Google Analytics/);
   assert.match(f.description, /Email input field/);
-  assert.match(f.description, /no privacy policy or consent artifact/);
+  assert.match(f.description, /no privacy policy or consent popup anywhere in the project/);
 });
 
 test("bare 'privacy policy' mentions in code do NOT count as an artifact (dogfood tightening)", async () => {

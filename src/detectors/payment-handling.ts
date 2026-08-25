@@ -69,11 +69,11 @@ export const paymentHandling: Detector = async (ctx) => {
         severity: "critical",
         file: relPath,
         line: lineNumber,
-        description: "Found what looks like a raw card-number/CVV field with no recognized PCI-scoped processor SDK in the same file.",
+        description: "Looks like your app collects card numbers or CVV codes directly, instead of letting a payment company handle them securely.",
         why_it_matters:
-          "Card data touching your own frontend/backend instead of a processor's hosted fields (Stripe Elements, Paddle overlay, etc.) puts you in PCI-DSS scope directly, which is a heavy compliance burden most solo builders can't actually meet, and processors will terminate your account if they detect it.",
+          "Card companies have strict rules: if card numbers pass through YOUR forms or servers, you can be fined heavily and your payment account can be shut down. Payment companies like Stripe offer special secure boxes where customers type card details — the numbers never touch your code.",
         suggested_fix:
-          "Use your payment processor's hosted card fields (e.g. Stripe Elements / PaymentElement) so card data never touches your own code, only a token does.",
+          "Swap these fields for your payment company's hosted card boxes (Stripe calls it Stripe Elements / PaymentElement). Your code only ever sees a safe token, never the card number.",
       });
     }
   }

@@ -65,6 +65,6 @@ test("unresolvable pub.dev package produces an explicit 'could not be determined
   for (const f of findings) {
     assert.equal(f.category, "copyleft-license");
     assert.equal(f.severity, "medium");
-    assert.match(f.description, /could not be determined/);
+    assert.match(f.description, /couldn.t reach pub\.dev/);
   }
 });

@@ -1,6 +1,6 @@
 {
   "name": "shipcheck-mcp",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "description": "Pre-launch risk scanner for AI-built apps. MCP server exposing static risk detectors (exposed secrets, copyleft license contamination, unauthenticated data endpoints, missing PII/consent artifacts, client-side payment handling) to any MCP-compatible coding agent.",
   "type": "module",
   "main": "dist/index.js",

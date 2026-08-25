@@ -15,7 +15,7 @@ test("fires on raw card fields with no processor SDK in the file", async () => {
   assert.ok(f, "expected checkout.html finding");
   assert.equal(f!.category, "client-side-payment");
   assert.equal(f!.severity, "critical");
-  assert.match(f!.description, /raw card-number\/CVV field/);
+  assert.match(f!.description, /collects card numbers or CVV codes directly/);
 });
 
 test("fires when a real input field appears after an unrelated card-word mention", async () => {
