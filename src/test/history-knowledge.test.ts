@@ -37,7 +37,7 @@ test("isReportableSecret filters placeholders and anon JWTs, keeps service_role 
   assert.equal(isReportableSecret("rk_test_mockexample00000000000000"), false);
   assert.equal(isReportableSecret(jwt("anon")), false);
   assert.equal(isReportableSecret(jwt("service_role")), true);
-  assert.equal(isReportableSecret("sk_test_REDACTEDFIXTUREKEY00"), true);
+  assert.equal(isReportableSecret("sk_test_51H8fTqZvXwYr2Km9sLp4Nj7Bc3Dd5Gh6Jk8Mm"), true);
 });
 
 test("history scan finds secrets that were committed then removed — but not live ones", async (t) => {
@@ -51,7 +51,7 @@ test("history scan finds secrets that were committed then removed — but not li
   await git("init", "-q");
   await git("config", "user.email", "t@t");
   await git("config", "user.name", "t");
-  const leaked = `STRIPE_KEY=sk_test_REDACTEDFIXTUREKEY00\n`;
+  const leaked = `STRIPE_KEY=sk_test_51QmWnRbVcXdYeFgThJrKuLpZsAoPiMwQeRtYuIoP\n`;
   await mkdir(join(dir, "src"), { recursive: true });
   await writeFile(join(dir, "src", "billing.ts"), leaked);
   await git("add", "-A");
