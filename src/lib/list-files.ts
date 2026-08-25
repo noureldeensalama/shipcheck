@@ -1,5 +1,5 @@
 import fg from "fast-glob";
-import { readFile } from "node:fs/promises";
+import { readFile, stat } from "node:fs/promises";
 import { join } from "node:path";
 import { createRequire } from "node:module";
 
@@ -32,6 +32,56 @@ export const DEFAULT_EXCLUDES = [
   "**/venv/**",
   "**/.tox/**",
 ];
+
+/**
+ * Directory names that mark vendored/generated trees, as bare segment checks.
+ * Equivalent to DEFAULT_EXCLUDES' glob intent but usable per-path without a
+ * full filesystem walk — which is what makes scan_diff instant on huge repos.
+ */
+const EXCLUDED_SEGMENTS = new Set([
+  ".git",
+  "dist",
+  "build",
+  ".next",
+  "coverage",
+  "node_modules",
+  ".venv",
+  "venv",
+  ".tox",
+]);
+
+/**
+ * Builds a predicate that answers "would listFiles include this path?" for
+ * individual paths — same rules (default excludes + repo .gitignore), no
+ * directory walk. Used by scan_diff so checking 5 changed files costs 5 stats,
+ * not a walk of the whole tree.
+ */
+export async function makePathFilter(
+  rootDir: string,
+): Promise<(relPath: string) => Promise<boolean>> {
+  let gitignoreContent = "";
+  try {
+    gitignoreContent = await readFile(join(rootDir, ".gitignore"), "utf-8");
+  } catch {
+    // no .gitignore, fine
+  }
+  const ig = ignore().add(gitignoreContent);
+
+  return async (relPath: string): Promise<boolean> => {
+    const normalized = relPath.split("\\").join("/");
+    const segments = normalized.split("/");
+    for (const seg of segments) {
+      if (EXCLUDED_SEGMENTS.has(seg)) return false;
+    }
+    if (ig.ignores(normalized)) return false;
+    try {
+      const st = await stat(join(rootDir, normalized));
+      return st.isFile();
+    } catch {
+      return false;
+    }
+  };
+}
 
 /**
  * Lists candidate files for scanning: everything under rootDir minus the

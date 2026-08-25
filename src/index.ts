@@ -3,7 +3,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 import { stat } from "node:fs/promises";
-import { listFiles } from "./lib/list-files.js";
+import { listFiles, makePathFilter } from "./lib/list-files.js";
 import { buildScanResult } from "./lib/scan-response.js";
 import { getChangedFiles } from "./lib/git-diff.js";
 import { detectProjectTypes, coverageCaveat } from "./lib/project-types.js";
@@ -83,7 +83,7 @@ async function runDetectors(rootDir: string, files: string[], activeCategories: 
 
 const server = new McpServer({
   name: "shipcheck",
-  version: "0.5.2",
+  version: "0.5.3",
 });
 
 server.registerTool(
@@ -192,10 +192,13 @@ server.registerTool(
       return errorResult(`Path '${rootDir}' does not exist or is not readable. Check for typos and use an absolute path if the repo is outside the current working directory.`);
     }
 
-    const available = await listFiles(rootDir);
+    // Fast path: a diff touches a handful of files — checking each against
+    // the same exclusion rules costs a few stats, while listing the whole
+    // tree would walk every file in the repo. Same rules, no walk.
+    const pathFilter = await makePathFilter(rootDir);
     let resolution;
     try {
-      resolution = await getChangedFiles(rootDir, base, available);
+      resolution = await getChangedFiles(rootDir, base, pathFilter);
     } catch (err) {
       return errorResult((err as Error).message);
     }
