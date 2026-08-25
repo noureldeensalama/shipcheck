@@ -7,7 +7,7 @@
 Works with Claude Code, OpenCode, Cursor, or any MCP-compatible agent — it's a standard
 [Model Context Protocol](https://modelcontextprotocol.io) server, not a Claude-only tool.
 
-[![CI](https://github.com/n0ureldeen/shipcheck/actions/workflows/ci.yml/badge.svg)](https://github.com/n0ureldeen/shipcheck/actions/workflows/ci.yml)
+[![CI](https://github.com/noureldeensalama/shipcheck/actions/workflows/ci.yml/badge.svg)](https://github.com/noureldeensalama/shipcheck/actions/workflows/ci.yml)
 [![npm](https://img.shields.io/npm/v/shipcheck-mcp)](https://www.npmjs.com/package/shipcheck-mcp)
 [![license](https://img.shields.io/badge/license-MIT-green)](./LICENSE)
 
@@ -65,7 +65,7 @@ detected stack isn't fully covered (`coverage_caveat`) instead of implying every
 
 ```bash
 # In Claude Code:
-/plugin marketplace add n0ureldeen/shipcheck
+/plugin marketplace add noureldeensalama/shipcheck
 /plugin install shipcheck
 
 # Then just talk to your agent:
@@ -80,7 +80,7 @@ claude --plugin-dir /path/to/shipcheck -p "Run shipcheck scan_repo on . and summ
 ### Standalone MCP server (Cursor, OpenCode, anything else)
 
 ```bash
-git clone https://github.com/n0ureldeen/shipcheck.git
+git clone https://github.com/noureldeensalama/shipcheck.git
 cd shipcheck && npm install && npm run build
 ```
 

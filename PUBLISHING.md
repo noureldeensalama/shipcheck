@@ -10,7 +10,7 @@ The repo has no git remote configured and this machine's `GITHUB_TOKEN` is inval
 ```bash
 cd /Volumes/DevDrive/Dev/Projects/ShipCheck
 gh auth login                      # or: export GITHUB_TOKEN=<a fresh token with repo scope>
-gh repo create n0ureldeen/shipcheck --public --source=. --push
+gh repo create noureldeensalama/shipcheck --public --source=. --push
 ```
 
 The CI badge in the README activates the moment the workflow runs on the first push.
@@ -35,7 +35,7 @@ triggered on release tags.
 ## 3. Claude Code plugin marketplace — [you] · highest-value submission
 
 - URL: https://claude.ai/settings/plugins → **Submit plugin**
-- Repo to submit: `n0ureldeen/shipcheck` (the `.claude-plugin/plugin.json` +
+- Repo to submit: `noureldeensalama/shipcheck` (the `.claude-plugin/plugin.json` +
   `marketplace.json` + bundled skill are already validated locally via
   `claude --plugin-dir .`)
 - This is where Claude Code users browse `/plugin install` — the primary distribution channel.
