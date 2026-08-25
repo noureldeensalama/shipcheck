@@ -1,0 +1,588 @@
+- generic [ref=f2e2]:
+  - generic [ref=f2e3]:
+    - link "Skip to content" [ref=f2e4] [cursor=pointer]:
+      - /url: "#start-of-content"
+    - banner [ref=f2e9]:
+      - heading "Navigation Menu" [level=2] [ref=f2e10]
+      - generic [ref=f2e11]:
+        - link "Homepage" [ref=f2e13] [cursor=pointer]:
+          - /url: /
+        - generic [ref=f2e16]:
+          - navigation "Global" [ref=f2e17]:
+            - list [ref=f2e18]:
+              - listitem [ref=f2e19]:
+                - button "Platform" [ref=f2e21] [cursor=pointer]
+              - listitem [ref=f2e24]:
+                - button "Solutions" [ref=f2e26] [cursor=pointer]
+              - listitem [ref=f2e29]:
+                - button "Resources" [ref=f2e31] [cursor=pointer]
+              - listitem [ref=f2e34]:
+                - button "Open Source" [ref=f2e36] [cursor=pointer]
+              - listitem [ref=f2e39]:
+                - button "Enterprise" [ref=f2e41] [cursor=pointer]
+              - listitem [ref=f2e44]:
+                - link "Pricing" [ref=f2e45] [cursor=pointer]:
+                  - /url: https://github.com/pricing
+          - generic [ref=f2e46]:
+            - button "Search or jump to, type / to search" [ref=f2e48] [cursor=pointer]
+            - link "Sign in" [ref=f2e55] [cursor=pointer]:
+              - /url: /login?return_to=https%3A%2F%2Fgithub.com%2Fnoureldeensalama%2Fshipcheck
+            - link "Sign up" [ref=f2e58] [cursor=pointer]:
+              - /url: /signup?ref_cta=Sign+up&ref_loc=header+logged+out&ref_page=%2F%3Cuser-name%3E%2F%3Crepo-name%3E&source=header-repo&source_repo=noureldeensalama%2Fshipcheck
+            - button "Appearance settings" [ref=f2e61] [cursor=pointer]
+  - main [ref=f2e68]:
+    - generic [ref=f2e69]:
+      - generic [ref=f2e70]:
+        - generic [ref=f2e72]:
+          - link "noureldeensalama" [ref=f2e76] [cursor=pointer]:
+            - /url: /noureldeensalama
+          - generic [ref=f2e77]: /
+          - strong [ref=f2e78]:
+            - link "shipcheck" [ref=f2e79] [cursor=pointer]:
+              - /url: /noureldeensalama/shipcheck
+          - generic [ref=f2e80]: Public
+        - generic [ref=f2e81]:
+          - list:
+            - listitem [ref=f2e82]:
+              - link "You must be signed in to change notification settings" [ref=f2e83] [cursor=pointer]:
+                - /url: /login?return_to=%2Fnoureldeensalama%2Fshipcheck
+                - text: Notifications
+            - listitem [ref=f2e86]:
+              - link "Fork 0" [ref=f2e87] [cursor=pointer]:
+                - /url: /login?return_to=%2Fnoureldeensalama%2Fshipcheck
+                - text: Fork
+                - generic "0" [ref=f2e90]
+            - listitem [ref=f2e91]:
+              - link "You must be signed in to star a repository" [ref=f2e93] [cursor=pointer]:
+                - /url: /login?return_to=%2Fnoureldeensalama%2Fshipcheck
+                - text: Star
+                - generic "0 users starred this repository" [ref=f2e96]: "0"
+      - navigation "Repository" [ref=f2e97]:
+        - list [ref=f2e98]:
+          - listitem [ref=f2e99]:
+            - link "Code" [ref=f2e100] [cursor=pointer]:
+              - /url: /noureldeensalama/shipcheck
+          - listitem [ref=f2e104]:
+            - link "Issues" [ref=f2e105] [cursor=pointer]:
+              - /url: /noureldeensalama/shipcheck/issues
+          - listitem [ref=f2e110]:
+            - link "Pull requests" [ref=f2e111] [cursor=pointer]:
+              - /url: /noureldeensalama/shipcheck/pulls
+          - listitem [ref=f2e115]:
+            - link "Actions" [ref=f2e116] [cursor=pointer]:
+              - /url: /noureldeensalama/shipcheck/actions
+          - listitem [ref=f2e120]:
+            - link "Projects" [ref=f2e121] [cursor=pointer]:
+              - /url: /noureldeensalama/shipcheck/projects
+          - listitem [ref=f2e125]:
+            - link "Security and quality" [ref=f2e126] [cursor=pointer]:
+              - /url: /noureldeensalama/shipcheck/security
+          - listitem [ref=f2e130]:
+            - link "Insights" [ref=f2e131] [cursor=pointer]:
+              - /url: /noureldeensalama/shipcheck/pulse
+    - generic [ref=f2e148]:
+      - generic [ref=f2e151]:
+        - generic [ref=f2e152]:
+          - generic [ref=f2e153]:
+            - button "main branch" [ref=f2e155] [cursor=pointer]:
+              - generic [ref=f2e156]: main
+            - generic [ref=f2e160]:
+              - link "Branches" [ref=f2e161] [cursor=pointer]:
+                - /url: /noureldeensalama/shipcheck/branches
+              - link "Tags" [ref=f2e164] [cursor=pointer]:
+                - /url: /noureldeensalama/shipcheck/tags
+          - generic [ref=f2e167]:
+            - combobox "Go to file" [ref=f2e175]
+            - button "Code" [ref=f2e176] [cursor=pointer]
+        - generic [ref=f2e179]:
+          - generic [ref=f2e180]:
+            - generic [ref=f2e182]:
+              - heading "Latest commit" [level=2] [ref=f2e183]
+              - generic [ref=f2e186]:
+                - heading "History" [level=2] [ref=f2e187]
+                - link "15 Commits" [ref=f2e188] [cursor=pointer]:
+                  - /url: /noureldeensalama/shipcheck/commits/main/
+            - heading "Folders and files" [level=2] [ref=f2e191]
+            - table "Folders and files" [ref=f2e192]:
+              - rowgroup:
+                - row "Name Last commit message Last commit date":
+                  - columnheader "Name"
+                  - columnheader "Last commit message"
+                  - columnheader "Last commit date"
+              - rowgroup [ref=f2e193]:
+                - row ".claude-plugin, (Directory)" [ref=f2e194]:
+                  - cell [ref=f2e195]:
+                    - link ".claude-plugin, (Directory)" [ref=f2e202] [cursor=pointer]:
+                      - /url: /noureldeensalama/shipcheck/tree/main/.claude-plugin
+                      - text: .claude-plugin
+                  - cell [ref=f2e203]
+                  - cell [ref=f2e205]
+                - row ".github/workflows, (Directory)" [ref=f2e208]:
+                  - cell [ref=f2e209]:
+                    - link ".github/workflows, (Directory)" [ref=f2e216] [cursor=pointer]:
+                      - /url: /noureldeensalama/shipcheck/tree/main/.github/workflows
+                      - text: .github/workflows
+                  - cell [ref=f2e217]
+                  - cell [ref=f2e219]
+                - row ".playwright-mcp, (Directory)" [ref=f2e222]:
+                  - cell [ref=f2e223]:
+                    - link ".playwright-mcp, (Directory)" [ref=f2e230] [cursor=pointer]:
+                      - /url: /noureldeensalama/shipcheck/tree/main/.playwright-mcp
+                      - text: .playwright-mcp
+                  - cell [ref=f2e231]
+                  - cell [ref=f2e233]
+                - row "docs, (Directory)" [ref=f2e236]:
+                  - cell [ref=f2e237]:
+                    - link "docs, (Directory)" [ref=f2e244] [cursor=pointer]:
+                      - /url: /noureldeensalama/shipcheck/tree/main/docs
+                      - text: docs
+                  - cell [ref=f2e245]
+                  - cell [ref=f2e247]
+                - row "scripts, (Directory)" [ref=f2e250]:
+                  - cell [ref=f2e251]:
+                    - link "scripts, (Directory)" [ref=f2e258] [cursor=pointer]:
+                      - /url: /noureldeensalama/shipcheck/tree/main/scripts
+                      - text: scripts
+                  - cell [ref=f2e259]
+                  - cell [ref=f2e261]
+                - row "skills/shipcheck, (Directory)" [ref=f2e264]:
+                  - cell [ref=f2e265]:
+                    - link "skills/shipcheck, (Directory)" [ref=f2e272] [cursor=pointer]:
+                      - /url: /noureldeensalama/shipcheck/tree/main/skills/shipcheck
+                      - text: skills/shipcheck
+                  - cell [ref=f2e273]
+                  - cell [ref=f2e275]
+                - row "src, (Directory)" [ref=f2e278]:
+                  - cell [ref=f2e279]:
+                    - link "src, (Directory)" [ref=f2e286] [cursor=pointer]:
+                      - /url: /noureldeensalama/shipcheck/tree/main/src
+                      - text: src
+                  - cell [ref=f2e287]
+                  - cell [ref=f2e289]
+                - row "test-fixtures, (Directory)" [ref=f2e292]:
+                  - cell [ref=f2e293]:
+                    - link "test-fixtures, (Directory)" [ref=f2e300] [cursor=pointer]:
+                      - /url: /noureldeensalama/shipcheck/tree/main/test-fixtures
+                      - text: test-fixtures
+                  - cell [ref=f2e301]
+                  - cell [ref=f2e303]
+                - row ".gitignore, (File)" [ref=f2e306]:
+                  - cell [ref=f2e307]:
+                    - link ".gitignore, (File)" [ref=f2e314] [cursor=pointer]:
+                      - /url: /noureldeensalama/shipcheck/blob/main/.gitignore
+                      - text: .gitignore
+                  - cell [ref=f2e315]
+                  - cell [ref=f2e317]
+                - row ".mcp.json, (File)" [ref=f2e320]:
+                  - cell [ref=f2e321]:
+                    - link ".mcp.json, (File)" [ref=f2e328] [cursor=pointer]:
+                      - /url: /noureldeensalama/shipcheck/blob/main/.mcp.json
+                      - text: .mcp.json
+                  - cell [ref=f2e329]
+                  - cell [ref=f2e331]
+                - row "AGENT_BUILD_BRIEF.md, (File)" [ref=f2e334]:
+                  - cell [ref=f2e335]:
+                    - link "AGENT_BUILD_BRIEF.md, (File)" [ref=f2e342] [cursor=pointer]:
+                      - /url: /noureldeensalama/shipcheck/blob/main/AGENT_BUILD_BRIEF.md
+                      - text: AGENT_BUILD_BRIEF.md
+                  - cell [ref=f2e343]
+                  - cell [ref=f2e345]
+                - row "CONTRIBUTING.md, (File)" [ref=f2e348]:
+                  - cell [ref=f2e349]:
+                    - link "CONTRIBUTING.md, (File)" [ref=f2e356] [cursor=pointer]:
+                      - /url: /noureldeensalama/shipcheck/blob/main/CONTRIBUTING.md
+                      - text: CONTRIBUTING.md
+                  - cell [ref=f2e357]
+                  - cell [ref=f2e359]
+                - row "DOGFOOD_RESULTS.md, (File)" [ref=f2e362]:
+                  - cell [ref=f2e363]:
+                    - link "DOGFOOD_RESULTS.md, (File)" [ref=f2e370] [cursor=pointer]:
+                      - /url: /noureldeensalama/shipcheck/blob/main/DOGFOOD_RESULTS.md
+                      - text: DOGFOOD_RESULTS.md
+                  - cell [ref=f2e371]
+                  - cell [ref=f2e373]
+                - row "LICENSE, (File)" [ref=f2e376]:
+                  - cell [ref=f2e377]:
+                    - link "LICENSE, (File)" [ref=f2e384] [cursor=pointer]:
+                      - /url: /noureldeensalama/shipcheck/blob/main/LICENSE
+                      - text: LICENSE
+                  - cell [ref=f2e385]
+                  - cell [ref=f2e387]
+                - row "PRD.md, (File)" [ref=f2e390]:
+                  - cell [ref=f2e391]:
+                    - link "PRD.md, (File)" [ref=f2e398] [cursor=pointer]:
+                      - /url: /noureldeensalama/shipcheck/blob/main/PRD.md
+                      - text: PRD.md
+                  - cell [ref=f2e399]
+                  - cell [ref=f2e401]
+                - row "PUBLISHING.md, (File)" [ref=f2e404]:
+                  - cell [ref=f2e405]:
+                    - link "PUBLISHING.md, (File)" [ref=f2e412] [cursor=pointer]:
+                      - /url: /noureldeensalama/shipcheck/blob/main/PUBLISHING.md
+                      - text: PUBLISHING.md
+                  - cell [ref=f2e413]
+                  - cell [ref=f2e415]
+                - row "README.md, (File)" [ref=f2e418]:
+                  - cell [ref=f2e419]:
+                    - link "README.md, (File)" [ref=f2e426] [cursor=pointer]:
+                      - /url: /noureldeensalama/shipcheck/blob/main/README.md
+                      - text: README.md
+                  - cell [ref=f2e427]
+                  - cell [ref=f2e429]
+                - row "package-lock.json, (File)" [ref=f2e432]:
+                  - cell [ref=f2e433]:
+                    - link "package-lock.json, (File)" [ref=f2e440] [cursor=pointer]:
+                      - /url: /noureldeensalama/shipcheck/blob/main/package-lock.json
+                      - text: package-lock.json
+                  - cell [ref=f2e441]
+                  - cell [ref=f2e443]
+                - row "package.json, (File)" [ref=f2e446]:
+                  - cell [ref=f2e447]:
+                    - link "package.json, (File)" [ref=f2e454] [cursor=pointer]:
+                      - /url: /noureldeensalama/shipcheck/blob/main/package.json
+                      - text: package.json
+                  - cell [ref=f2e455]
+                  - cell [ref=f2e457]
+                - row "tsconfig.json, (File)" [ref=f2e460]:
+                  - cell [ref=f2e461]:
+                    - link "tsconfig.json, (File)" [ref=f2e468] [cursor=pointer]:
+                      - /url: /noureldeensalama/shipcheck/blob/main/tsconfig.json
+                      - text: tsconfig.json
+                  - cell [ref=f2e469]
+                  - cell [ref=f2e471]
+          - generic [ref=f2e475]:
+            - generic [ref=f2e476]:
+              - heading "Repository files navigation" [level=2] [ref=f2e477]
+              - navigation "Repository files" [ref=f2e478]:
+                - list [ref=f2e479]:
+                  - listitem [ref=f2e480]:
+                    - link "README" [ref=f2e481] [cursor=pointer]:
+                      - /url: "#"
+                  - listitem [ref=f2e483]:
+                    - link "Contributing" [ref=f2e484] [cursor=pointer]:
+                      - /url: "#"
+                  - listitem [ref=f2e486]:
+                    - link "MIT license" [ref=f2e487] [cursor=pointer]:
+                      - /url: "#"
+              - button "Outline" [ref=f2e489] [cursor=pointer]
+            - article [ref=f2e493]:
+              - generic [ref=f2e494]:
+                - link [ref=f2e495] [cursor=pointer]:
+                  - /url: /noureldeensalama/shipcheck/blob/main/docs/logo.svg
+                  - img "ShipCheck" [ref=f2e496]
+                - paragraph [ref=f2e497]:
+                  - strong [ref=f2e498]: Find what your AI-built app leaks — before you ship.
+                - paragraph [ref=f2e499]:
+                  - text: Works with Claude Code, OpenCode, Cursor, or any MCP-compatible agent — it's a standard
+                  - link "Model Context Protocol" [ref=f2e500] [cursor=pointer]:
+                    - /url: https://modelcontextprotocol.io
+                  - text: server, not a Claude-only tool.
+                - paragraph [ref=f2e501]:
+                  - link [ref=f2e502] [cursor=pointer]:
+                    - /url: https://github.com/noureldeensalama/shipcheck/actions/workflows/ci.yml
+                    - img "CI" [ref=f2e503]
+                  - link [ref=f2e504] [cursor=pointer]:
+                    - /url: https://www.npmjs.com/package/shipcheck-mcp
+                    - img "npm" [ref=f2e505]
+                  - link [ref=f2e506] [cursor=pointer]:
+                    - /url: /noureldeensalama/shipcheck/blob/main/LICENSE
+                    - img "license" [ref=f2e507]
+              - separator [ref=f2e508]
+              - paragraph [ref=f2e509]: AI coding agents happily ship apps that leak API keys, pull in GPL-licensed packages, leave admin routes open to the internet, collect emails with no privacy policy, or touch raw card numbers — because "does it run" and "is this okay to ship" are different questions, and your agent only answers the first one.
+              - paragraph [ref=f2e510]:
+                - text: ShipCheck answers the second one. It runs five fast, deterministic checks over your project and explains every finding in plain words — what's wrong, why it matters for
+                - emphasis [ref=f2e511]: you
+                - text: ", and exactly how to fix it. No security background needed."
+              - blockquote [ref=f2e512]:
+                - paragraph [ref=f2e513]:
+                  - strong [ref=f2e514]: "Honest by design:"
+                  - text: ShipCheck flags risky
+                  - emphasis [ref=f2e515]: patterns
+                  - text: . It is not a legal review and not a guarantee. A clean scan means nothing matched these specific checks — nothing more. See
+                  - link "PRD.md" [ref=f2e516] [cursor=pointer]:
+                    - /url: /noureldeensalama/shipcheck/blob/main/PRD.md
+                  - text: §2 for the full non-goals.
+              - generic [ref=f2e517]:
+                - heading "Two tools, two moments" [level=2] [ref=f2e518]
+                - 'link "Permalink: Two tools, two moments" [ref=f2e519] [cursor=pointer]':
+                  - /url: "#two-tools-two-moments"
+              - table [ref=f2e523]:
+                - rowgroup [ref=f2e524]:
+                  - row [ref=f2e525]:
+                    - columnheader "Tool" [ref=f2e526]
+                    - columnheader "When" [ref=f2e527]
+                    - columnheader "What it scans" [ref=f2e528]
+                - rowgroup [ref=f2e529]:
+                  - row [ref=f2e530]:
+                    - cell [ref=f2e531]:
+                      - strong [ref=f2e532]:
+                        - code [ref=f2e533]: scan_diff
+                    - cell [ref=f2e534]:
+                      - strong [ref=f2e535]: Before every commit
+                      - text: — while your agent builds
+                    - cell [ref=f2e536]:
+                      - text: Just the uncommitted changes (or a whole branch via
+                      - code [ref=f2e537]: base
+                      - text: ). Runs in ~0.1s even on 100k-file repos.
+                  - row [ref=f2e538]:
+                    - cell [ref=f2e539]:
+                      - strong [ref=f2e540]:
+                        - code [ref=f2e541]: scan_repo
+                    - cell [ref=f2e542]:
+                      - strong [ref=f2e543]: Before launch
+                      - text: — app stores, going live, investors
+                    - cell "The whole repository, including git history for deleted-but-never-rotated secrets." [ref=f2e544]
+              - paragraph [ref=f2e545]:
+                - text: "The bundled skill teaches your agent the habit:"
+                - code [ref=f2e546]: scan_diff
+                - text: before commits,
+                - code [ref=f2e547]: scan_repo
+                - text: before launch.
+              - generic [ref=f2e548]:
+                - heading "Works with your stack" [level=2] [ref=f2e549]
+                - 'link "Permalink: Works with your stack" [ref=f2e550] [cursor=pointer]':
+                  - /url: "#works-with-your-stack"
+              - table [ref=f2e554]:
+                - rowgroup [ref=f2e555]:
+                  - row [ref=f2e556]:
+                    - columnheader "Check" [ref=f2e557]
+                    - columnheader "Coverage" [ref=f2e558]
+                - rowgroup [ref=f2e559]:
+                  - row [ref=f2e560]:
+                    - cell "🔑 Exposed secrets" [ref=f2e561]
+                    - cell [ref=f2e562]:
+                      - text: Any language — 15+ key formats (Stripe, OpenAI, Anthropic, OpenRouter, Supabase service-role, AWS, GitHub, Google, Slack, SendGrid, Resend, private keys, DB URLs), committed
+                      - code [ref=f2e563]: .env
+                      - text: files, plus
+                      - strong [ref=f2e564]: deleted-but-never-rotated keys found in git history
+                  - row [ref=f2e565]:
+                    - cell "⚖️ Copyleft licenses" [ref=f2e566]
+                    - cell "npm · PyPI · pub.dev · crates.io · RubyGems · Composer" [ref=f2e567]
+                  - row [ref=f2e568]:
+                    - cell "🚪 Unlocked routes" [ref=f2e569]
+                    - cell "Express · FastAPI · Flask · Next.js (App + Pages Router) · gin/echo/fiber-style Go · Laravel · Spring Boot" [ref=f2e570]
+                  - row [ref=f2e571]:
+                    - cell "🕵️ PII without a privacy policy" [ref=f2e572]
+                    - cell "Google Analytics, PostHog, Meta Pixel, Hotjar, Clarity, Amplitude, Mixpanel, Segment, Firebase, signup/auth forms, phone inputs" [ref=f2e573]
+                  - row [ref=f2e574]:
+                    - cell "💳 Card data handling" [ref=f2e575]
+                    - cell "Raw card/CVV fields in JS/TS/Dart/Python/HTML vs. processor SDKs (Stripe Elements & friends)" [ref=f2e576]
+              - paragraph [ref=f2e577]:
+                - text: Every summary tells you which stacks it detected (
+                - code [ref=f2e578]: project_types
+                - text: ) and warns you honestly when a detected stack isn't fully covered (
+                - code [ref=f2e579]: coverage_caveat
+                - text: ) instead of implying everything is fine.
+              - generic [ref=f2e580]:
+                - heading "What a finding looks like" [level=2] [ref=f2e581]
+                - 'link "Permalink: What a finding looks like" [ref=f2e582] [cursor=pointer]':
+                  - /url: "#what-a-finding-looks-like"
+              - blockquote [ref=f2e585]:
+                - paragraph [ref=f2e586]:
+                  - strong [ref=f2e587]: "[critical] lib/firebase_options.dart"
+                  - text: — Possible Google API Key found in code that runs on people's devices.
+                - paragraph [ref=f2e588]:
+                  - strong [ref=f2e589]: "Why this matters:"
+                  - text: This key travels inside your app to every user's phone or browser. Anyone can copy it out and use it as if they were you — spending your money or reading your data.
+                - paragraph [ref=f2e590]:
+                  - strong [ref=f2e591]: "The fix:"
+                  - text: Move the key into a separate secrets file that never becomes part of the project, load it at startup, then get a new key from the provider's dashboard — treat this one as stolen.
+              - generic [ref=f2e592]:
+                - heading "30-second start" [level=2] [ref=f2e593]
+                - 'link "Permalink: 30-second start" [ref=f2e594] [cursor=pointer]':
+                  - /url: "#30-second-start"
+              - generic [ref=f2e597]:
+                - generic [ref=f2e598]:
+                  - generic [ref=f2e599]: "# In Claude Code:"
+                  - text: /plugin marketplace add noureldeensalama/shipcheck /plugin install shipcheck
+                  - generic [ref=f2e600]: "# Then just talk to your agent:"
+                - button "Copy code to clipboard" [ref=f2e602] [cursor=pointer]
+              - blockquote [ref=f2e606]:
+                - paragraph [ref=f2e607]:
+                  - emphasis [ref=f2e608]: "\"run shipcheck before I commit\""
+                  - text: ·
+                  - emphasis [ref=f2e609]: "\"is this ready to launch?\""
+                  - text: ·
+                  - emphasis [ref=f2e610]: "\"scan this repo\""
+              - paragraph [ref=f2e611]: "Headless / CI:"
+              - generic [ref=f2e612]:
+                - generic [ref=f2e613]:
+                  - text: claude --plugin-dir /path/to/shipcheck -p
+                  - generic [ref=f2e614]: "\"Run shipcheck scan_repo on . and summarize findings\""
+                - button "Copy code to clipboard" [ref=f2e616] [cursor=pointer]
+              - generic [ref=f2e620]:
+                - heading "Standalone MCP server (Cursor, OpenCode, anything else)" [level=3] [ref=f2e621]
+                - 'link "Permalink: Standalone MCP server (Cursor, OpenCode, anything else)" [ref=f2e622] [cursor=pointer]':
+                  - /url: "#standalone-mcp-server-cursor-opencode-anything-else"
+              - generic [ref=f2e625]:
+                - generic [ref=f2e626]: git clone https://github.com/noureldeensalama/shipcheck.git cd shipcheck && npm install && npm run build
+                - button "Copy code to clipboard" [ref=f2e628] [cursor=pointer]
+              - generic [ref=f2e632]:
+                - generic [ref=f2e633]:
+                  - text: "{ \"mcpServers\": { \"shipcheck\": { \"command\":"
+                  - generic [ref=f2e634]: "\"node\""
+                  - text: ", \"args\": ["
+                  - generic [ref=f2e635]: "\"/absolute/path/to/shipcheck/dist/index.js\""
+                  - text: "] } } }"
+                - button "Copy code to clipboard" [ref=f2e637] [cursor=pointer]
+              - paragraph [ref=f2e641]:
+                - text: "Or once published:"
+                - code [ref=f2e642]: npx shipcheck-mcp
+              - generic [ref=f2e643]:
+                - heading "Built to be trusted" [level=2] [ref=f2e644]
+                - 'link "Permalink: Built to be trusted" [ref=f2e645] [cursor=pointer]':
+                  - /url: "#built-to-be-trusted"
+              - list [ref=f2e648]:
+                - listitem [ref=f2e649]:
+                  - strong [ref=f2e650]: Deterministic
+                  - text: ": regex + dependency metadata only. An LLM explains findings downstream; it never decides whether a finding exists ("
+                  - link "PRD.md" [ref=f2e651] [cursor=pointer]:
+                    - /url: /noureldeensalama/shipcheck/blob/main/PRD.md
+                  - text: §4).
+                - listitem [ref=f2e652]:
+                  - strong [ref=f2e653]: Quiet by design
+                  - text: ": identical keys deduplicate into one finding with all locations; output is severity-ordered, compact (~1k tokens on a 100k-LOC repo), capped at 100 findings with an explicit truncation flag; vendored trees ("
+                  - code [ref=f2e654]: node_modules
+                  - text: ","
+                  - code [ref=f2e655]: .venv
+                  - text: ","
+                  - code [ref=f2e656]: build
+                  - text: …) are never scanned; placeholder values (
+                  - code [ref=f2e657]: mock…
+                  - text: ", CI dummies) and public-by-design configs ("
+                  - code [ref=f2e658]: google-services.json
+                  - text: ","
+                  - code [ref=f2e659]: firebase_options.dart
+                  - text: ) don't cry wolf.
+                - listitem [ref=f2e660]:
+                  - strong [ref=f2e661]: Proven on real code
+                  - text: ": dogfooded on five production repos — it caught a live Supabase service-role key across 13 files and three unauthenticated debug endpoints, then verified the fixes landed and flagged a second key that survived only in git history. Full true/false-positive log:"
+                  - link "DOGFOOD_RESULTS.md" [ref=f2e662] [cursor=pointer]:
+                    - /url: /noureldeensalama/shipcheck/blob/main/DOGFOOD_RESULTS.md
+                  - text: .
+              - generic [ref=f2e663]:
+                - heading "Compatibility" [level=2] [ref=f2e664]
+                - 'link "Permalink: Compatibility" [ref=f2e665] [cursor=pointer]':
+                  - /url: "#compatibility"
+              - table [ref=f2e669]:
+                - rowgroup [ref=f2e670]:
+                  - row [ref=f2e671]:
+                    - columnheader [ref=f2e672]
+                    - columnheader [ref=f2e673]
+                - rowgroup [ref=f2e674]:
+                  - row [ref=f2e675]:
+                    - cell "Node.js" [ref=f2e676]
+                    - 'cell "20+ (CI matrix: 20 & 22)" [ref=f2e677]'
+                  - row [ref=f2e678]:
+                    - cell "OS" [ref=f2e679]
+                    - cell "macOS · Linux · Windows (BOM-tolerant file parsing, path-safe)" [ref=f2e680]
+                  - row [ref=f2e681]:
+                    - cell "Agents" [ref=f2e682]
+                    - cell "Anything that speaks MCP over stdio" [ref=f2e683]
+                  - row [ref=f2e684]:
+                    - cell "Project types" [ref=f2e685]
+                    - cell "Secrets/licenses cover every stack; route coverage per table above" [ref=f2e686]
+              - generic [ref=f2e687]:
+                - heading "Testing it yourself" [level=2] [ref=f2e688]
+                - 'link "Permalink: Testing it yourself" [ref=f2e689] [cursor=pointer]':
+                  - /url: "#testing-it-yourself"
+              - generic [ref=f2e692]:
+                - generic [ref=f2e693]:
+                  - text: npm test
+                  - generic [ref=f2e694]: "# 53 unit tests"
+                  - text: npm run e2e
+                  - generic [ref=f2e695]: "# 21 real-MCP-protocol checks"
+                  - text: npm run verify-fixture
+                  - generic [ref=f2e696]: "# acceptance gate over deliberately-vulnerable fixtures"
+                  - text: npm run dogfood -- /path/to/any/repo
+                  - generic [ref=f2e697]: "# scan any repo from the CLI"
+                - button "Copy code to clipboard" [ref=f2e699] [cursor=pointer]
+              - generic [ref=f2e703]:
+                - heading "Contributing" [level=2] [ref=f2e704]
+                - 'link "Permalink: Contributing" [ref=f2e705] [cursor=pointer]':
+                  - /url: "#contributing"
+              - paragraph [ref=f2e708]:
+                - text: Issues and PRs welcome — see
+                - link "CONTRIBUTING.md" [ref=f2e709] [cursor=pointer]:
+                  - /url: /noureldeensalama/shipcheck/blob/main/CONTRIBUTING.md
+                - text: . New detector categories need both a fires-on-risk fixture and a doesn't-over-fire regression test; false-positive reports with real code samples are especially valuable. Real-repo results live in
+                - link "DOGFOOD_RESULTS.md" [ref=f2e710] [cursor=pointer]:
+                  - /url: /noureldeensalama/shipcheck/blob/main/DOGFOOD_RESULTS.md
+                - text: .
+              - generic [ref=f2e711]:
+                - heading "License" [level=2] [ref=f2e712]
+                - 'link "Permalink: License" [ref=f2e713] [cursor=pointer]':
+                  - /url: "#license"
+              - paragraph [ref=f2e716]:
+                - text: MIT — see
+                - link "LICENSE" [ref=f2e717] [cursor=pointer]:
+                  - /url: /noureldeensalama/shipcheck/blob/main/LICENSE
+                - text: .
+      - generic [ref=f2e720]:
+        - generic [ref=f2e721]:
+          - heading "About" [level=2] [ref=f2e722]
+          - paragraph [ref=f2e723]: Find what your AI-built app leaks — before you ship. Secrets, copyleft licenses, unlocked routes, missing privacy policies, card handling. MCP server + Claude Code plugin.
+          - heading "Resources" [level=3] [ref=f2e724]
+          - link "Readme" [ref=f2e726] [cursor=pointer]:
+            - /url: "#readme-ov-file"
+          - link "MIT license" [ref=f2e730] [cursor=pointer]:
+            - /url: "#MIT-1-ov-file"
+          - heading "Contributing" [level=3] [ref=f2e733]
+          - link "Contributing" [ref=f2e735] [cursor=pointer]:
+            - /url: "#contributing-ov-file"
+          - link "Activity" [ref=f2e739] [cursor=pointer]:
+            - /url: /noureldeensalama/shipcheck/activity
+          - heading "Stars" [level=3] [ref=f2e742]
+          - generic [ref=f2e744]:
+            - strong [ref=f2e747]: "0"
+            - text: stars
+          - heading "Watchers" [level=3] [ref=f2e748]
+          - generic [ref=f2e750]:
+            - strong [ref=f2e753]: "0"
+            - text: watching
+          - heading "Forks" [level=3] [ref=f2e754]
+          - link [ref=f2e756] [cursor=pointer]:
+            - /url: /noureldeensalama/shipcheck/forks
+            - strong [ref=f2e760]: "0"
+            - text: forks
+          - link "Report repository" [ref=f2e762] [cursor=pointer]:
+            - /url: /contact/report-content?content_url=https%3A%2F%2Fgithub.com%2Fnoureldeensalama%2Fshipcheck&report=noureldeensalama+%28user%29
+        - heading "Releases" [level=2] [ref=f2e764]
+        - heading "Packages" [level=2] [ref=f2e768]
+        - heading "Contributors" [level=2] [ref=f2e771]
+        - heading "Languages" [level=2] [ref=f2e774]
+  - contentinfo [ref=f2e777]:
+    - heading "Footer" [level=2] [ref=f2e778]
+    - generic [ref=f2e779]:
+      - generic [ref=f2e780]:
+        - link "GitHub Homepage" [ref=f2e781] [cursor=pointer]:
+          - /url: https://github.com
+        - generic [ref=f2e784]: © 2026 GitHub, Inc.
+      - navigation "Footer" [ref=f2e785]:
+        - heading "Footer navigation" [level=3] [ref=f2e786]
+        - list "Footer navigation" [ref=f2e787]:
+          - listitem [ref=f2e788]:
+            - link "Terms" [ref=f2e789] [cursor=pointer]:
+              - /url: https://docs.github.com/site-policy/github-terms/github-terms-of-service
+          - listitem [ref=f2e790]:
+            - link "Privacy" [ref=f2e791] [cursor=pointer]:
+              - /url: https://docs.github.com/site-policy/privacy-policies/github-privacy-statement
+          - listitem [ref=f2e792]:
+            - link "Security" [ref=f2e793] [cursor=pointer]:
+              - /url: https://github.com/security
+          - listitem [ref=f2e794]:
+            - link "Status" [ref=f2e795] [cursor=pointer]:
+              - /url: https://www.githubstatus.com/
+          - listitem [ref=f2e796]:
+            - link "Community" [ref=f2e797] [cursor=pointer]:
+              - /url: https://github.community/
+          - listitem [ref=f2e798]:
+            - link "Docs" [ref=f2e799] [cursor=pointer]:
+              - /url: https://docs.github.com/
+          - listitem [ref=f2e800]:
+            - link "Contact" [ref=f2e801] [cursor=pointer]:
+              - /url: https://support.github.com?tags=dotcom-footer
+          - listitem [ref=f2e802]:
+            - button "Manage cookies" [ref=f2e804] [cursor=pointer]
+          - listitem [ref=f2e805]:
+            - button "Do not share my personal information" [ref=f2e807] [cursor=pointer]

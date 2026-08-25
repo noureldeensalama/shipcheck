@@ -17,7 +17,7 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "dev": "tsx src/index.ts",
-    "test": "npm run build && node --test dist/test/*.test.js",
+    "test": "npm run build && node --test dist/test/",
     "e2e": "npm run build && node scripts/e2e.mjs",
     "dogfood": "npm run build && node scripts/dogfood.mjs",
     "verify-fixture": "npm run build && node scripts/verify-fixture.mjs"
